@@ -522,12 +522,14 @@ void main(){
   vec2 P=vec2(uDom.x+uv.x*uDom.z,uDom.y-uv.y*uDom.w);
   vec2 tc=(vec2((P.x-uDom.x)/uDX,(uDom.y-P.y)/uDX)+0.5)/uGrid;
   vec4 F=texture(uF,tc);vec2 V=texture(uV,tc).xy;
-  float Tp=8.0;float p1=fract(uT/Tp),p2=fract(uT/Tp+0.5);float w1=1.0-abs(2.0*p1-1.0);
+  float Tp=8.0;float p1=fract(uT/Tp),p2=fract(uT/Tp+0.5);float w1=1.0-abs(2.0*p1-1.0),w2=1.0-w1;
+  // contrast-preserving cross-fade: a plain w1/w2 mix of two independent noises loses ~30 % contrast at w=0.5 -> clouds 'breathe'
+  float wn=inversesqrt(w1*w1+w2*w2);
   vec2 a1=P-V*p1*Tp,a2=P-V*p2*Tp+vec2(311.,173.);
   float n1=0.62*nz(a1/1100.)+0.38*nz(a1/210.+0.3),n2=0.62*nz(a2/1100.)+0.38*nz(a2/210.+0.3);
-  float n=n1*w1+n2*(1.0-w1);n=clamp((n-0.5)*2.4+0.5,0.,1.);
+  float n=0.5+((n1-0.5)*w1+(n2-0.5)*w2)*wn;n=clamp((n-0.5)*2.4+0.5,0.,1.);
   float cf=F.r;float a=smoothstep(1.0-cf-0.10,1.0-cf+0.22,n);
-  float m1=0.55*nz(a1/420.+0.7)+0.45*nz(a1/290.+0.23),m2=0.55*nz(a2/420.+0.1)+0.45*nz(a2/290.+0.61);float m=m1*w1+m2*(1.0-w1);m=clamp((m-0.5)*3.0+0.5,0.,1.);
+  float m1=0.55*nz(a1/420.+0.7)+0.45*nz(a1/290.+0.23),m2=0.55*nz(a2/420.+0.1)+0.45*nz(a2/290.+0.61);float m=0.5+((m1-0.5)*w1+(m2-0.5)*w2)*wn;m=clamp((m-0.5)*3.0+0.5,0.,1.);
   float cc=F.g;float cells=smoothstep(1.0-0.6*cc-0.05,1.0-0.6*cc+0.07,m)*step(0.02,cc);
   vec3 sea=vec3(0.05,0.10,0.18),land=vec3(0.13,0.17,0.12),mt=vec3(0.34,0.32,0.27);
   vec3 base=mix(sea,mix(land,mt,F.a*0.8),F.b);

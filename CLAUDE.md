@@ -38,7 +38,7 @@ Workflow: edituj `src/template.html` → `python tools/build.py` → otevři `in
 - Kondenzace: `q_s,eff = q_s(T850)·exp(−γ·Z)`, γ = 4.5e-4 /m; nadbytek → `CW`; `CW > 0.06 g/kg` vypadává; vypařování při podsycení.
 - Moře: SST podle regionů (`REG`: Atlantik, Středozemní, Černé, Baltské, Severní, Kaspické, Rudé; odchylka pro každé zvlášť); výpar a ohřev tím silnější, čím je vzduch studenější než moře; přeháňky při `SST − T850 > ~13 K`.
 - Fronty: osy maxima |∇T| (TFP-like), filtr `|∇T| > 1.4 K/100 km`, **frontogeneze > 0.6 K/100 km/den** (aby se nekreslily kruhy kolem stacionárních studených jader), okraj 5 buněk mimo; typ podle advekce (teplá/studená/kvazistac.).
-- Vykreslení: 2D canvas (raster vrstev, izobary/izotermy marching squares, částice s fade trails) + WebGL2 shader pro „družicový“ vzhled (flow-advected noise ve dvou fázích). Pokud je WebGL pomalé (EMA > 28 ms), automaticky `glSlow = true` → jednoduchý raster.
+- Vykreslení: 2D canvas (raster vrstev, izobary/izotermy marching squares, částice s fade trails) + WebGL2 shader pro „družicový“ vzhled (flow-advected noise ve dvou fázích, perioda 8 h; prolínání se zachováním kontrastu – obyčejný mix w/1−w způsoboval „dýchání“ mraků po 4 h). Pokud je WebGL pomalé (EMA > 28 ms), automaticky `glSlow = true` → jednoduchý raster.
 
 ## UI (rozložení à la Photoshop)
 - Pravidlo: **nástroj = věc, se kterou pracuji přímo v mapě**; kontextová lišta nahoře = jeho doladění (nebo parametry vybraného systému).
