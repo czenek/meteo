@@ -1,0 +1,5 @@
+shot.png
+*.png
+!docs/screenshots/*.png
+natural-earth/
+__pycache__/

@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tlakové pole a vítr nad Evropou</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#070b14; --panel:#0e1524; --panel2:#141d30; --line:#223050; --text:#dce4f2; --mute:#8b99b5;
+  --acc:#7cc4ff; --hi:#4f8dff; --lo:#ff5d5d; --warn:#e879f9;
+  --font:'IBM Plex Sans',system-ui,-apple-system,Segoe UI,Roboto,sans-serif; --mono:'IBM Plex Mono',ui-monospace,Menlo,monospace;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font:14px/1.45 var(--font);overflow:hidden}
+#app{display:flex;height:100vh;width:100vw}
+#mapwrap{position:relative;flex:1;min-width:0;overflow:hidden}
+#map{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none}
+#panel{width:340px;flex:none;background:var(--panel);border-left:1px solid var(--line);overflow-y:auto;padding:14px 16px 40px}
+h1{font-size:17px;font-weight:600;margin:0 0 2px;letter-spacing:.01em}
+.sub{color:var(--mute);font-size:12.5px;margin-bottom:12px}
+section{border-top:1px solid var(--line);padding:12px 0 10px}
+section h2{font-size:11.5px;text-transform:uppercase;letter-spacing:.09em;color:var(--mute);margin:0 0 9px;font-weight:600}
+label.row{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:7px 0;font-size:13px}
+label.row span.v{font-family:var(--mono);font-size:12px;color:var(--acc);min-width:64px;text-align:right}
+select,button{font:inherit;color:var(--text);background:var(--panel2);border:1px solid var(--line);border-radius:6px;padding:6px 9px}
+select{width:100%;cursor:pointer}
+button{cursor:pointer}
+button:hover,select:hover{border-color:#36507f}
+button.on{background:#1d3157;border-color:var(--acc)}
+.btns{display:flex;gap:6px;flex-wrap:wrap}
+.btns button{flex:1}
+.seg{display:flex;border:1px solid var(--line);border-radius:7px;overflow:hidden}
+.seg button{flex:1;border:0;border-radius:0;padding:7px 4px;font-size:12.5px;background:transparent}
+.seg button+button{border-left:1px solid var(--line)}
+.seg button.on{background:#1d3157;color:#fff}
+input[type=range]{flex:1;max-width:150px;accent-color:var(--acc)}
+.chk{display:flex;gap:14px;flex-wrap:wrap;margin-top:9px;font-size:13px}
+.chk label{display:flex;gap:5px;align-items:center;cursor:pointer}
+.note{font-size:12px;color:var(--mute);margin-top:6px}
+#selbox[hidden],#probebox[hidden]{display:none}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:2px 10px;font-size:12.5px;margin:6px 0 8px}
+.kv b{font-weight:500;color:var(--mute)}
+.kv span{font-family:var(--mono);font-size:12px;text-align:right}
+#forces{width:100%;height:220px;background:#0a101c;border:1px solid var(--line);border-radius:8px;display:block}
+.flegend{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:12px;margin-top:6px}
+.flegend i{display:inline-block;width:10px;height:3px;border-radius:2px;margin-right:5px;vertical-align:middle}
+#explain{font-size:12.5px;color:#c3cde0;margin-top:8px}
+details{font-size:12.5px;color:#c3cde0}
+details summary{cursor:pointer;color:var(--text);font-weight:500;margin-bottom:6px}
+details p{margin:6px 0}
+code{font-family:var(--mono);font-size:11.5px;background:#18223a;padding:1px 4px;border-radius:4px}
+.hud{position:absolute;pointer-events:none;font-size:12px;background:rgba(7,11,20,.78);border:1px solid rgba(124,196,255,.18);border-radius:7px;padding:6px 9px;backdrop-filter:blur(4px)}
+#hint{left:12px;top:12px;max-width:min(560px,calc(100% - 24px));color:#c3cde0}
+#hint kbd{font-family:var(--mono);font-size:11px;background:#1b2741;border:1px solid #2c3d63;border-radius:4px;padding:0 4px}
+#cursor{right:12px;bottom:12px;font-family:var(--mono);font-size:11.5px;white-space:nowrap}
+#legend{left:12px;bottom:12px;width:280px}
+#legend canvas{width:100%;height:10px;display:block;border-radius:3px;margin:4px 0 2px}
+#legend .ticks{display:flex;justify-content:space-between;font-family:var(--mono);font-size:10.5px;color:var(--mute)}
+#legend .ttl{font-size:11.5px;color:#c3cde0}
+#legend .anom{font-size:11px;color:var(--warn);margin-top:3px}
+#clock{right:12px;top:12px;font-family:var(--mono);font-size:11.5px}
+.mode-add #map{cursor:crosshair}
+@media (max-width:820px){
+  #app{flex-direction:column}
+  #mapwrap{flex:none;height:58vh}
+  #panel{width:100%;border-left:0;border-top:1px solid var(--line);flex:1}
+  #hint{display:none}
+  #legend{width:200px}
+}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="mapwrap">
+    <canvas id="map"></canvas>
+    <div id="hint" class="hud"><b>Táhni</b> značky V / N &nbsp;·&nbsp; <kbd>kolečko</kbd> velikost &nbsp;·&nbsp; <kbd>Shift</kbd>+<kbd>kolečko</kbd> intenzita &nbsp;·&nbsp; táhni okraj elipsy = tvar &nbsp;·&nbsp; <b>klikni do mapy</b> = sonda (síly + trajektorie)</div>
+    <div id="clock" class="hud"></div>
+    <div id="legend" class="hud"><div class="ttl" id="legTitle"></div><canvas id="legBar" width="280" height="10"></canvas><div class="ticks" id="legTicks"></div><div class="anom" id="legAnom" hidden>▪ fialové tečky: gradientový vítr nemá řešení (výše je na svou velikost příliš ostrá)</div></div>
+    <div id="cursor" class="hud" hidden></div>
+  </div>
+  <aside id="panel">
+    <h1>Tlak → vítr</h1>
+    <div class="sub">Interaktivní model přízemního proudění nad Evropou. Vítr se odvozuje přímo z tlakového pole, takže každá změna se projeví okamžitě.</div>
+
+    <section>
+      <h2>Situace</h2>
+      <select id="preset"></select>
+      <div class="btns" style="margin-top:8px">
+        <button id="addH" title="Klikni potom do mapy">+ Tlaková výše</button>
+        <button id="addL" title="Klikni potom do mapy">+ Tlaková níže</button>
+      </div>
+      <label class="row" title="Velkoprostorový pokles tlaku k severu (mezi 35° a 65° s. š.). Kladné = západní proudění, záporné = východní.">Zonální pozadí <input type="range" id="bg" min="-20" max="30" step="1"><span class="v" id="bgV"></span></label>
+    </section>
+
+    <section id="selbox" hidden>
+      <h2>Vybraný systém</h2>
+      <div class="seg" style="margin-bottom:6px"><button id="tH">Výše (V)</button><button id="tL">Níže (N)</button></div>
+      <label class="row">Intenzita <input type="range" id="amp" min="2" max="45" step="0.5"><span class="v" id="ampV"></span></label>
+      <label class="row">Poloměr <input type="range" id="size" min="250" max="2500" step="10"><span class="v" id="sizeV"></span></label>
+      <label class="row">Protažení <input type="range" id="aspect" min="1" max="3.5" step="0.05"><span class="v" id="aspectV"></span></label>
+      <label class="row">Natočení <input type="range" id="rot" min="0" max="179" step="1"><span class="v" id="rotV"></span></label>
+      <div class="btns"><button id="del">Odstranit systém</button></div>
+    </section>
+
+    <section>
+      <h2>Vítr</h2>
+      <div class="seg" id="modeSeg">
+        <button data-m="geo" title="Rovnováha tlakové a Coriolisovy síly">Geostrofický</button>
+        <button data-m="grad" title="+ vliv zakřivení izobar (≈ 1 km, bez tření)">Gradientový</button>
+        <button data-m="sfc" title="+ tření o povrch (10 m nad zemí)">Přízemní 10 m</button>
+      </div>
+      <div class="chk">
+        <label><input type="checkbox" id="cPart" checked> částice</label>
+        <label><input type="checkbox" id="cIso" checked> izobary</label>
+        <label><input type="checkbox" id="cVec"> šipky</label>
+        <label><input type="checkbox" id="cMark" checked> značky V/N</label>
+      </div>
+    </section>
+
+    <section>
+      <h2>Vrstva v pozadí</h2>
+      <select id="layer">
+        <option value="speed">Rychlost větru</option>
+        <option value="pres">Tlak přepočtený na hladinu moře</option>
+        <option value="temp">Teplota vzduchové hmoty (stopovač)</option>
+        <option value="dust">Saharský prach (stopovač)</option>
+        <option value="rough">Drsnost povrchu (tření)</option>
+      </select>
+      <label class="row" title="Jak rychle běží čas pro unášení vzduchových hmot">Čas stopovačů <input type="range" id="tspeed" min="1" max="36" step="1"><span class="v" id="tspeedV"></span></label>
+      <div class="btns"><button id="pause">Pauza</button><button id="resetT">Reset stopovačů</button></div>
+      <div class="note">Stopovače unáší gradientový vítr (≈ volná atmosféra). Teplota se pomalu vrací ke „klimatologii“ (τ = 5 dní), prach se uvolňuje nad Saharou.</div>
+    </section>
+
+    <section id="probebox" hidden>
+      <h2>Sonda</h2>
+      <div class="kv" id="probeKV"></div>
+      <canvas id="forces"></canvas>
+      <div class="flegend" id="fleg"></div>
+      <div id="explain"></div>
+      <div class="note"><span style="color:#ffb26b">━</span> kam vzduch doputuje (72 h) &nbsp; <span style="color:#7ee0ff">━</span> odkud přichází (72 h), tečky po 24 h</div>
+      <div class="btns" style="margin-top:8px"><button id="probeOff">Zrušit sondu</button></div>
+    </section>
+
+    <section>
+      <details>
+        <summary>Co se tu vlastně počítá</summary>
+        <p><b>Tlakové pole</b> = 1013 hPa + zonální pozadí + součet eliptických „kopců“ (výše) a „důlků“ (níže) gaussovského tvaru. Mapa je v šikmé stereografické projekci (konformní), mřížka 50 km.</p>
+        <p><b>Geostrofický vítr:</b> <code>V = (1/ρf)·k × ∇p</code>, kde <code>f = 2Ω sin φ</code>. Fouká podél izobar, nízký tlak má po levé ruce. Silnější je tam, kde jsou izobary hustší, a (při stejném gradientu) blíže k jihu, protože f je menší.</p>
+        <p><b>Gradientový vítr</b> přidává zakřivení izobar κ: <code>V²κ + fV = fV<sub>g</sub></code>. Kolem níže je vítr slabší, kolem výše silnější. U výše existuje řešení jen pokud <code>4V<sub>g</sub>κ/f ≥ −1</code>, proto mají reálné výše ploché středy se slabým větrem.</p>
+        <p><b>Tření:</b> lineární tření <code>−kV</code> (k podle drsnosti: moře &lt; nížina &lt; hory) v rovnováze s tlakovou a Coriolisovou silou stočí vítr o úhel <code>α = atan(k/f)</code> k nižšímu tlaku a zeslabí ho (<code>cos α</code>). Pro výšku 10 m se navíc rychlost sníží logaritmickým profilem.</p>
+        <p><b>Co tu není:</b> vývoj a postup systémů, vertikální struktura, fronty, teplotní vliv na tlak, obtékání a blokování horami (fén, bóra), denní chod, konvekce. Hory jen zvyšují tření. Pole je stacionární, takže trajektorie jsou zároveň proudnicemi.</p>
+        <p class="note">Data pobřeží: Natural Earth (public domain).</p>
+      </details>
+    </section>
+  </aside>
+</div>
+
+<script>const GEO=/*GEO*/;</script>
+<script>
+'use strict';
+// ====================== constants & projection ======================
+const D2R=Math.PI/180, R_E=6371, OMEGA=7.292e-5, RHO=1.225;
+const LON0=10, LAT0=50, sinP1=Math.sin(LAT0*D2R), cosP1=Math.cos(LAT0*D2R);
+const X0=-3800, X1=3800, Y0=-2850, Y1=2700, DX=50;           // km, plane
+const NX=Math.round((X1-X0)/DX)+1, NY=Math.round((Y1-Y0)/DX)+1, N=NX*NY;
+function fwd(lon,lat){const l=(lon-LON0)*D2R,p=lat*D2R,cp=Math.cos(p),sp=Math.sin(p),cl=Math.cos(l);const k=2*R_E/(1+sinP1*sp+cosP1*cp*cl);return [k*cp*Math.sin(l),k*(cosP1*sp-sinP1*cp*cl)];}
+function inv(x,y){const rho=Math.hypot(x,y);if(rho<1e-9)return [LON0,LAT0];const c=2*Math.atan(rho/(2*R_E)),sc=Math.sin(c),cc=Math.cos(c);
+  const lat=Math.asin(cc*sinP1+y*sc*cosP1/rho);const lon=LON0*D2R+Math.atan2(x*sc,rho*cosP1*cc-y*sinP1*sc);return [lon/D2R,lat/D2R];}
+const XS=i=>X0+i*DX, YS=j=>Y1-j*DX;
+
+// per-node geometry
+const LAT=new Float32Array(N), LON=new Float32Array(N), HS=new Float32Array(N), FC=new Float32Array(N);
+for(let j=0;j<NY;j++)for(let i=0;i<NX;i++){const k=j*NX+i,x=XS(i),y=YS(j);const [lo,la]=inv(x,y);LAT[k]=la;LON[k]=lo;
+  HS[k]=1+(x*x+y*y)/(4*R_E*R_E); FC[k]=2*OMEGA*Math.sin(Math.max(la,15)*D2R);}
+
+// ====================== geography: land mask & roughness ======================
+function decode(enc){const pts=[];let x=enc[0],y=enc[1];pts.push([x,y]);for(let i=2;i<enc.length;i+=2){x+=enc[i];y+=enc[i+1];pts.push([x,y]);}return pts;}
+const LANDR=GEO.land.map(decode), LAKER=GEO.lakes.map(decode);
+const LAND=new Float32Array(N), MTN=new Float32Array(N), KFR=new Float32Array(N), S10=new Float32Array(N), ROUGH=new Float32Array(N);
+(function buildMasks(){
+  const c=document.createElement('canvas');c.width=NX;c.height=NY;const g=c.getContext('2d');
+  g.setTransform(1/DX,0,0,-1/DX,-X0/DX+0.5,Y1/DX+0.5);
+  const p=new Path2D();for(const r of LANDR.concat(LAKER)){p.moveTo(r[0][0],r[0][1]);for(let i=1;i<r.length;i++)p.lineTo(r[i][0],r[i][1]);p.closePath();}
+  g.fillStyle='#fff';g.fill(p,'evenodd');
+  const d=g.getImageData(0,0,NX,NY).data;for(let k=0;k<N;k++)LAND[k]=d[k*4+3]/255;
+  // orography (approximate ellipses): lon,lat, semi-axis a,b [km], angle [deg from east], height factor
+  const M=[[7,45.4,210,110,75,1],[11.6,46.9,380,110,8,1],[0.6,42.7,240,60,-5,.8],[20,49.2,260,70,12,.55],[24.6,47.6,200,70,-60,.55],[24.6,45.5,230,60,3,.6],
+    [17.5,43.6,420,90,-38,.6],[24.6,42.2,300,110,0,.5],[13.2,63.8,800,130,58,.65],[8,61.2,260,190,20,.7],[44,42.9,560,90,-22,1],[-3,32.3,750,140,25,.75],
+    [34,39,720,300,0,.6],[-4,40,420,300,0,.4],[13.5,42.6,460,70,-52,.5],[-4.6,57.1,170,110,30,.4],[-18.6,64.9,230,120,0,.6],[-41,71,900,520,75,1],
+    [2.8,45.3,140,110,0,.35],[14,49.8,260,170,15,.3],[8.3,48.3,130,70,80,.3],[-3.5,37.2,200,60,10,.5],[42.5,38.8,450,250,0,.7],[36,34.2,220,60,80,.4],[-6,53,90,60,0,.2]];
+  const Mp=M.map(m=>{const [x,y]=fwd(m[0],m[1]);return {x,y,a:m[2],b:m[3],c:Math.cos(m[4]*D2R),s:Math.sin(m[4]*D2R),h:m[5]};});
+  for(let j=0;j<NY;j++)for(let i=0;i<NX;i++){const k=j*NX+i,x=XS(i),y=YS(j);let h=0;
+    for(const m of Mp){const dx=x-m.x,dy=y-m.y,u=(dx*m.c+dy*m.s)/m.a,v=(-dx*m.s+dy*m.c)/m.b,q=u*u+v*v;if(q<9){const e=m.h*Math.exp(-q);if(e>h)h=e;}}
+    MTN[k]=Math.min(1,h);
+    const L=LAND[k], mt=MTN[k]*L;
+    ROUGH[k]=L*(0.3+0.7*MTN[k]);
+    KFR[k]=3.5e-5*(1-L)+L*(6.5e-5+7e-5*MTN[k]);   // Rayleigh friction coefficient [1/s]
+    S10[k]=0.84*(1-L)+L*(0.66-0.16*MTN[k]);       // 10 m reduction (log profile)
+  }
+})();
+
+// ====================== state ======================
+const S={systems:[],bg:0,mode:'sfc',layer:'speed',part:true,iso:true,vec:false,mark:true,sel:null,add:null,probe:null,tspeed:6,paused:false,simT:0,nextId:1};
+const PRESETS=[
+ {n:'Zonální západní proudění',bg:8,s:[[1,-25,37,14,1100,1.9,8],[-1,-19,63,22,1000,1.5,15],[-1,18,68,10,700,1.3,0]]},
+ {n:'Klimatologie – zima (Azory, Island, Sibiř)',bg:3,s:[[1,-28,36,10,1200,1.8,5],[-1,-26,62,18,1250,1.6,20],[1,52,52,18,1300,1.4,-10]]},
+ {n:'Omega blokáda nad Skandinávií',bg:0,s:[[1,12,60,20,800,1.5,90],[-1,-14,50,16,650,1.2,60],[-1,34,48,14,650,1.2,120],[1,-32,35,8,1000,1.5,0]]},
+ {n:'Rexova blokáda (výše nad níží)',bg:0,s:[[1,8,61,20,800,1.6,0],[-1,9,43,11,550,1.4,0]]},
+ {n:'Cyklóna Vb – povodňová situace',bg:0,s:[[-1,18,49,17,550,1.2,30],[1,-12,52,14,1000,1.4,80],[1,34,60,8,900,1.2,0]]},
+ {n:'Jižní advekce – saharský vzduch',bg:0,s:[[-1,-17,47,22,950,1.5,70],[1,30,44,14,1000,1.3,0]]},
+ {n:'Výše nad Tureckem a Černým mořem',bg:2,s:[[-1,-10,49,18,850,1.4,70],[1,34,41,14,800,1.5,0],[1,-30,36,10,1000,1.6,0]]},
+ {n:'Severní vpád arktického vzduchu',bg:0,s:[[1,-20,62,22,1000,1.3,90],[-1,23,57,18,800,1.2,40]]},
+ {n:'Sibiřská anticyklona – mrazivé východní proudění',bg:-2,s:[[1,44,58,24,1300,1.4,0],[-1,-12,45,12,900,1.3,0]]},
+ {n:'Prázdná mapa (1013 hPa)',bg:0,s:[]}
+];
+function loadPreset(ix){const p=PRESETS[ix];S.bg=p.bg;S.systems=p.s.map(a=>mkSys(a[0],a[1],a[2],a[3],a[4],a[5],a[6]));S.sel=null;S.probe=null;refreshUI();fieldDirty=true;compute();resetTracers(true);clearTrails();}
+function mkSys(type,lon,lat,amp,size,aspect,rot){const [x,y]=fwd(lon,lat);return {id:S.nextId++,type,x,y,amp,size,aspect,rot};}
+
+// ====================== field arrays ======================
+const P=new Float32Array(N), GX=new Float32Array(N), GY=new Float32Array(N), NXv=new Float32Array(N), NYv=new Float32Array(N), KAP=new Float32Array(N), TMP=new Float32Array(N);
+const UG=new Float32Array(N),VG=new Float32Array(N),UR=new Float32Array(N),VR=new Float32Array(N),UB=new Float32Array(N),VB=new Float32Array(N),US=new Float32Array(N),VS=new Float32Array(N);
+const ANOM=new Uint8Array(N), SPD=new Float32Array(N);
+const PU=new Float32Array(N),PV=new Float32Array(N), TU=new Float32Array(N), TV=new Float32Array(N); // plane velocities km/s
+let fieldDirty=true, rasterDirty=true, isoDirty=true;
+
+function bgP(lat){const t=Math.max(-1,Math.min(1,(lat-50)/30));return -S.bg*50*Math.sin(t*Math.PI/2);}
+function sysParams(s){const sq=Math.sqrt(s.aspect);return {a:s.size*sq,b:s.size/sq,c:Math.cos(s.rot*D2R),s:Math.sin(s.rot*D2R)};}
+function compute(){
+  const sp=S.systems.map(s=>Object.assign({o:s},sysParams(s)));
+  for(let j=0;j<NY;j++){const y=YS(j);for(let i=0;i<NX;i++){const k=j*NX+i,x=XS(i);let p=101300+bgP(LAT[k]);
+    for(const q of sp){const s=q.o,dx=x-s.x,dy=y-s.y,u=(dx*q.c+dy*q.s)/q.a,v=(-dx*q.s+dy*q.c)/q.b,r=u*u+v*v;if(r<40)p+=s.type*s.amp*100*Math.exp(-0.5*r);}
+    P[k]=p;}}
+  const D=DX*1000;
+  for(let j=0;j<NY;j++)for(let i=0;i<NX;i++){const k=j*NX+i;const ip=Math.min(i+1,NX-1),im=Math.max(i-1,0),jn=Math.max(j-1,0),js=Math.min(j+1,NY-1);
+    const px=(P[j*NX+ip]-P[j*NX+im])/((ip-im)*D), py=(P[jn*NX+i]-P[js*NX+i])/((js-jn)*D);
+    const gx=HS[k]*px, gy=HS[k]*py; GX[k]=gx;GY[k]=gy;const G=Math.hypot(gx,gy);
+    if(G>3e-5){NXv[k]=gx/G;NYv[k]=gy/G;}else{NXv[k]=0;NYv[k]=0;}}
+  for(let j=0;j<NY;j++)for(let i=0;i<NX;i++){const k=j*NX+i;const ip=Math.min(i+1,NX-1),im=Math.max(i-1,0),jn=Math.max(j-1,0),js=Math.min(j+1,NY-1);
+    TMP[k]=HS[k]*((NXv[j*NX+ip]-NXv[j*NX+im])/((ip-im)*D)+(NYv[jn*NX+i]-NYv[js*NX+i])/((js-jn)*D));}
+  // smooth curvature (3x3)
+  for(let j=0;j<NY;j++)for(let i=0;i<NX;i++){let s=0,w=0;for(let b=-1;b<=1;b++){const jj=j+b;if(jj<0||jj>=NY)continue;for(let a=-1;a<=1;a++){const ii=i+a;if(ii<0||ii>=NX)continue;const ww=(a===0&&b===0)?2:1;s+=TMP[jj*NX+ii]*ww;w+=ww;}}
+    KAP[j*NX+i]=Math.max(-1/150e3,Math.min(1/150e3,s/w));}
+  for(let k=0;k<N;k++){const f=FC[k],gx=GX[k],gy=GY[k];const ug=-gy/(RHO*f),vg=gx/(RHO*f);UG[k]=ug;VG[k]=vg;
+    const Vg=Math.hypot(ug,vg);let ratio=1;ANOM[k]=0;
+    if(Vg>0.05){const disc=1+4*Vg*KAP[k]/f;if(disc>=0)ratio=2/(1+Math.sqrt(disc));else{ratio=2;ANOM[k]=1;}}
+    const ur=ug*ratio,vr=vg*ratio;UR[k]=ur;VR[k]=vr;
+    const al=Math.atan(KFR[k]/f),ca=Math.cos(al),sa=Math.sin(al);
+    const ub=(ca*ur-sa*vr)*ca, vb=(sa*ur+ca*vr)*ca;UB[k]=ub;VB[k]=vb;US[k]=ub*S10[k];VS[k]=vb*S10[k];}
+  setModeArrays();
+  fieldDirty=false;rasterDirty=true;isoDirty=true;computeTraj();
+}
+function curU(){return S.mode==='geo'?UG:S.mode==='grad'?UR:US;} function curV(){return S.mode==='geo'?VG:S.mode==='grad'?VR:VS;}
+function setModeArrays(){const U=curU(),V=curV();for(let k=0;k<N;k++){SPD[k]=Math.hypot(U[k],V[k]);PU[k]=U[k]*HS[k]/1000;PV[k]=V[k]*HS[k]/1000;TU[k]=UR[k]*HS[k]/1000;TV[k]=VR[k]*HS[k]/1000;}rasterDirty=true;}
+
+function inside(x,y){return x>=X0&&x<=X1&&y>=Y0&&y<=Y1;}
+function samp(A,x,y){let fi=(x-X0)/DX,fj=(Y1-y)/DX;if(fi<0)fi=0;else if(fi>NX-1.0001)fi=NX-1.0001;if(fj<0)fj=0;else if(fj>NY-1.0001)fj=NY-1.0001;
+  const i=fi|0,j=fj|0,a=fi-i,b=fj-j,k=j*NX+i;return A[k]*(1-a)*(1-b)+A[k+1]*a*(1-b)+A[k+NX]*(1-a)*b+A[k+NX+1]*a*b;}
+
+// ====================== tracers ======================
+const T=new Float32Array(N),T2=new Float32Array(N),TEQ=new Float32Array(N),DU=new Float32Array(N),DU2=new Float32Array(N),DSRC=new Uint8Array(N);
+for(let k=0;k<N;k++){const la=LAT[k],lo=LON[k];let t=16-0.78*(la-35);
+  const dx=(lo-8)/18,dy=(la-25)/7;t+=6*Math.exp(-(dx*dx+dy*dy))*LAND[k];          // Saharan heat low region
+  t-=3*LAND[k]*Math.max(0,Math.min(1,(lo-20)/25))*Math.max(0,(la-45)/20);          // continental cold east
+  TEQ[k]=t;DSRC[k]=(LAND[k]>0.5&&la<31.5&&la>17&&lo>-14&&lo<33&&MTN[k]<0.5)?1:0;}
+function resetTracers(spin){T.set(TEQ);for(let k=0;k<N;k++)DU[k]=DSRC[k]?1:0;S.simT=0;if(spin){for(let n=0;n<40;n++)stepTracers(3*3600);S.simT=0;}rasterDirty=true;}
+function stepTracers(dt){
+  const tau=5*86400, dd=Math.exp(-dt/(4*86400)), rs=1-Math.exp(-dt/(12*3600)), rt=1-Math.exp(-dt/tau);
+  for(let j=0;j<NY;j++){const y=YS(j);for(let i=0;i<NX;i++){const k=j*NX+i,x=XS(i);
+    let u=TU[k],v=TV[k];let xm=x-0.5*u*dt,ym=y-0.5*v*dt;u=samp(TU,xm,ym);v=samp(TV,xm,ym);
+    const xd=x-u*dt,yd=y-v*dt;let t,d;
+    if(inside(xd,yd)){t=samp(T,xd,yd);d=samp(DU,xd,yd);}else{t=TEQ[k];d=0;}
+    t+=(TEQ[k]-t)*rt;d*=dd;if(DSRC[k])d+=(1-d)*rs;T2[k]=t;DU2[k]=d;}}
+  T.set(T2);DU.set(DU2);S.simT+=dt;
+}
+
+// ====================== trajectories ======================
+let TRAJ=null;
+function traceDir(x,y,sign){const pts=[[x,y]],dt=1800*sign;for(let n=0;n<144;n++){const u=samp(PU,x,y),v=samp(PV,x,y);const xm=x+0.5*u*dt,ym=y+0.5*v*dt;if(!inside(xm,ym))break;
+  const u2=samp(PU,xm,ym),v2=samp(PV,xm,ym);x+=u2*dt;y+=v2*dt;if(!inside(x,y))break;pts.push([x,y]);}return pts;}
+function computeTraj(){if(!S.probe){TRAJ=null;return;}TRAJ={f:traceDir(S.probe.x,S.probe.y,1),b:traceDir(S.probe.x,S.probe.y,-1)};}
+
+// ====================== canvas & view ======================
+const cv=document.getElementById('map'), ctx=cv.getContext('2d');
+const trail=document.createElement('canvas'), tctx=trail.getContext('2d');
+const off=document.createElement('canvas');off.width=NX;off.height=NY;const octx=off.getContext('2d');const img=octx.createImageData(NX,NY);
+let W=0,H=0,dpr=1,sc=1,ox=0,oy=0,landPath=null,gratPath=null;
+const sx=x=>ox+(x-X0)*sc, sy=y=>oy+(Y1-y)*sc, px2x=p=>(p-ox)/sc+X0, py2y=p=>Y1-(p-oy)/sc;
+function resize(){const r=cv.getBoundingClientRect();dpr=Math.min(2,window.devicePixelRatio||1);W=r.width;H=r.height;cv.width=Math.round(W*dpr);cv.height=Math.round(H*dpr);
+  trail.width=cv.width;trail.height=cv.height;
+  sc=Math.max(W/(X1-X0),H/(Y1-Y0))*1.0; sc=Math.min(sc,Math.min(W/(X1-X0),H/(Y1-Y0))*1.18); // fill most of the view, small crop allowed
+  ox=(W-(X1-X0)*sc)/2;oy=(H-(Y1-Y0)*sc)/2;
+  landPath=new Path2D();for(const r of LANDR.concat(LAKER)){landPath.moveTo(sx(r[0][0]),sy(r[0][1]));for(let i=1;i<r.length;i++)landPath.lineTo(sx(r[i][0]),sy(r[i][1]));landPath.closePath();}
+  gratPath=new Path2D();for(let lo=-60;lo<=80;lo+=10){let first=true;for(let la=10;la<=85;la+=1){const [x,y]=fwd(lo,la);if(first){gratPath.moveTo(sx(x),sy(y));first=false;}else gratPath.lineTo(sx(x),sy(y));}}
+  for(let la=20;la<=80;la+=10){let first=true;for(let lo=-70;lo<=90;lo+=1){const [x,y]=fwd(lo,la);if(first){gratPath.moveTo(sx(x),sy(y));first=false;}else gratPath.lineTo(sx(x),sy(y));}}
+  initParticles();isoDirty=true;rasterDirty=true;}
+function clearTrails(){tctx.setTransform(1,0,0,1,0,0);tctx.clearRect(0,0,trail.width,trail.height);}
+
+// ====================== colour maps ======================
+function hex(h){return [parseInt(h.slice(1,3),16),parseInt(h.slice(3,5),16),parseInt(h.slice(5,7),16)];}
+function mkMap(stops){const s=stops.map(([v,c])=>[v,hex(c)]);const lo=s[0][0],hi=s[s.length-1][0];const lut=new Uint8Array(256*3);
+  for(let n=0;n<256;n++){const v=lo+(hi-lo)*n/255;let a=0;while(a<s.length-2&&v>s[a+1][0])a++;const t=Math.max(0,Math.min(1,(v-s[a][0])/(s[a+1][0]-s[a][0])));
+    for(let c=0;c<3;c++)lut[n*3+c]=Math.round(s[a][1][c]+(s[a+1][1][c]-s[a][1][c])*t);}return {lo,hi,lut,stops};}
+const CM={
+ speed:mkMap([[0,'#1a2550'],[3,'#21488a'],[6,'#1d7f99'],[9,'#2a9a6a'],[12,'#86b83e'],[15,'#dcc233'],[19,'#e5862a'],[24,'#cf3d2e'],[30,'#9c2259'],[40,'#5e1a66']]),
+ pres:mkMap([[960,'#3a1d6b'],[985,'#2a56a0'],[1003,'#4b9fc4'],[1013,'#c9d3d1'],[1023,'#e3b257'],[1036,'#d4652c'],[1050,'#982820']]),
+ temp:mkMap([[-20,'#2a1964'],[-10,'#2e5cb0'],[0,'#79bedd'],[8,'#e3ebcd'],[15,'#f0b058'],[22,'#dc5c2d'],[30,'#991d29']]),
+ dust:mkMap([[0,'#16233a'],[0.08,'#2a3346'],[0.3,'#7a6038'],[0.6,'#c38d3a'],[1,'#f3cd78']]),
+ rough:mkMap([[0,'#123a63'],[0.25,'#4f7146'],[0.45,'#7c8a52'],[0.7,'#b6a679'],[1,'#ece6d6']])
+};
+const LEG={speed:['Rychlost větru [m/s]',[0,5,10,15,20,25,30,40]],pres:['Tlak [hPa]',[960,980,1000,1013,1030,1050]],temp:['Teplota vzduchové hmoty ≈ 850 hPa [°C] (orientační)',[-20,-10,0,10,20,30]],
+  dust:['Koncentrace prachu (relativní)',[0,0.25,0.5,0.75,1]],rough:['Drsnost povrchu: moře → nížina → hory',[0,0.5,1]]};
+function updateLegend(){const m=CM[S.layer];const c=document.getElementById('legBar'),g=c.getContext('2d');for(let x=0;x<280;x++){const n=Math.round(x/279*255);g.fillStyle=`rgb(${m.lut[n*3]},${m.lut[n*3+1]},${m.lut[n*3+2]})`;g.fillRect(x,0,1,10);}
+  const [t,ticks]=LEG[S.layer];document.getElementById('legTitle').textContent=t;document.getElementById('legTicks').innerHTML=ticks.map(v=>`<span>${v}</span>`).join('');
+  document.getElementById('legAnom').hidden=!(S.mode!=='geo');}
+function updateRaster(){const m=CM[S.layer];const A=S.layer==='speed'?SPD:S.layer==='temp'?T:S.layer==='dust'?DU:S.layer==='rough'?ROUGH:P;const scale=S.layer==='pres'?0.01:1;
+  const d=img.data,lo=m.lo,k255=255/(m.hi-m.lo),lut=m.lut;
+  for(let k=0;k<N;k++){let n=((A[k]*scale-lo)*k255)|0;if(n<0)n=0;else if(n>255)n=255;d[k*4]=lut[n*3];d[k*4+1]=lut[n*3+1];d[k*4+2]=lut[n*3+2];d[k*4+3]=255;}
+  octx.putImageData(img,0,0);rasterDirty=false;}
+
+// ====================== isobars ======================
+let isoPath=null,isoBold=null,isoLabels=[];
+function buildIso(){const STEP=5;isoPath=new Path2D();isoBold=new Path2D();const segs=[];
+  const Ph=TMP;for(let k=0;k<N;k++)Ph[k]=P[k]/100;
+  for(let j=0;j<NY-1;j++){const y=YS(j);for(let i=0;i<NX-1;i++){const x=XS(i),k=j*NX+i;const v0=Ph[k],v1=Ph[k+1],v2=Ph[k+NX+1],v3=Ph[k+NX];
+    const mn=Math.min(v0,v1,v2,v3),mx=Math.max(v0,v1,v2,v3);for(let L=Math.ceil(mn/STEP)*STEP;L<=mx;L+=STEP){
+      const b0=v0>L,b1=v1>L,b2=v2>L,b3=v3>L;const code=(b0?8:0)|(b1?4:0)|(b2?2:0)|(b3?1:0);if(code===0||code===15)continue;
+      const E={};if(b0!==b1){const t=(L-v0)/(v1-v0);E.t=[x+t*DX,y];}if(b1!==b2){const t=(L-v1)/(v2-v1);E.r=[x+DX,y-t*DX];}
+      if(b3!==b2){const t=(L-v3)/(v2-v3);E.b=[x+t*DX,y-DX];}if(b0!==b3){const t=(L-v0)/(v3-v0);E.l=[x,y-t*DX];}
+      let pairs;if(code===5||code===10){const c=(v0+v1+v2+v3)/4>L;
+        if(code===10)pairs=c?[['t','r'],['b','l']]:[['l','t'],['r','b']];else pairs=c?[['l','t'],['r','b']]:[['t','r'],['b','l']];}
+      else{const ks=Object.keys(E);pairs=[[ks[0],ks[1]]];}
+      for(const [a,b] of pairs){const A=E[a],B=E[b];const path=(L%20===0)?isoBold:isoPath;path.moveTo(sx(A[0]),sy(A[1]));path.lineTo(sx(B[0]),sy(B[1]));segs.push([L,(A[0]+B[0])/2,(A[1]+B[1])/2]);}}}}
+  // labels
+  isoLabels=[];const step=Math.max(1,Math.floor(segs.length/2500));
+  for(let n=0;n<segs.length;n+=step){const [L,x,y]=segs[(n*7919)%segs.length];const X=sx(x),Y=sy(y);if(X<30||Y<30||X>W-30||Y>H-30)continue;
+    let ok=true;for(const q of isoLabels){const d=(q.X-X)**2+(q.Y-Y)**2;if(d<90*90||(q.L===L&&d<300*300)){ok=false;break;}}if(ok)isoLabels.push({L,X,Y});if(isoLabels.length>70)break;}
+  isoDirty=false;}
+
+// ====================== particles ======================
+let parts=[];
+function initParticles(){const area=(X1-X0)*(Y1-Y0)*sc*sc;const n=Math.min(9000,Math.round(area/150));parts=new Array(n);for(let i=0;i<n;i++)parts[i]=spawn({},true);clearTrails();}
+function spawn(p,rnd){p.x=X0+Math.random()*(X1-X0);p.y=Y0+Math.random()*(Y1-Y0);p.age=rnd?Math.random()*120|0:0;p.max=60+Math.random()*120|0;return p;}
+function stepParticles(fr){
+  tctx.setTransform(1,0,0,1,0,0);tctx.globalCompositeOperation='destination-in';tctx.fillStyle=`rgba(0,0,0,${Math.pow(0.92,fr)})`;tctx.fillRect(0,0,trail.width,trail.height);
+  tctx.globalCompositeOperation='source-over';if(!S.part)return;
+  tctx.setTransform(dpr,0,0,dpr,0,0);tctx.lineWidth=1.1;tctx.strokeStyle='rgba(255,255,255,0.82)';tctx.beginPath();
+  const Tp=120/sc*fr;
+  for(const p of parts){if(++p.age>p.max){spawn(p,false);continue;}const u=samp(PU,p.x,p.y),v=samp(PV,p.x,p.y);let dx=u*Tp,dy=v*Tp;const L=Math.hypot(dx,dy)*sc;if(L>7){dx*=7/L;dy*=7/L;}
+    const x2=p.x+dx,y2=p.y+dy;if(!inside(x2,y2)){spawn(p,false);continue;}
+    if(L>0.05){tctx.moveTo(sx(p.x),sy(p.y));tctx.lineTo(sx(x2),sy(y2));}p.x=x2;p.y=y2;}
+  tctx.stroke();}
+
+// ====================== drawing ======================
+const DIRS=['S','SSV','SV','VSV','V','VJV','JV','JJV','J','JJZ','JZ','ZJZ','Z','ZSZ','SZ','SSZ'];
+function northAngle(lon,lat){const [a,b]=fwd(lon,lat),[c,d]=fwd(lon,lat+0.05);return Math.atan2(d-b,c-a);}
+function windFrom(u,v,lon,lat){const th=northAngle(lon,lat),ph=Math.atan2(v,u);let to=(th-ph)/D2R;let fr=((to+180)%360+360)%360;return [fr,DIRS[Math.round(fr/22.5)%16]];}
+function drawArrow(g,x,y,dx,dy,head){const L=Math.hypot(dx,dy);if(L<1)return;g.beginPath();g.moveTo(x,y);g.lineTo(x+dx,y+dy);const a=Math.atan2(dy,dx),h=Math.min(head,L*0.45);
+  g.moveTo(x+dx,y+dy);g.lineTo(x+dx-h*Math.cos(a-0.45),y+dy-h*Math.sin(a-0.45));g.moveTo(x+dx,y+dy);g.lineTo(x+dx-h*Math.cos(a+0.45),y+dy-h*Math.sin(a+0.45));g.stroke();}
+function draw(){
+  ctx.setTransform(dpr,0,0,dpr,0,0);ctx.fillStyle='#070b14';ctx.fillRect(0,0,W,H);
+  ctx.save();ctx.beginPath();ctx.rect(sx(X0),sy(Y1),(X1-X0)*sc,(Y1-Y0)*sc);ctx.clip();
+  if(rasterDirty||S.layer==='temp'||S.layer==='dust')updateRaster();
+  ctx.imageSmoothingEnabled=true;ctx.drawImage(off,sx(X0-DX/2),sy(Y1+DX/2),NX*DX*sc,NY*DX*sc);
+  ctx.fillStyle='rgba(0,0,0,0.2)';ctx.fill(landPath,'evenodd');
+  ctx.strokeStyle='rgba(255,255,255,0.09)';ctx.lineWidth=1;ctx.stroke(gratPath);
+  ctx.strokeStyle='rgba(235,242,255,0.72)';ctx.lineWidth=1;ctx.stroke(landPath);
+  if(S.mode!=='geo'){ctx.fillStyle='rgba(232,121,249,0.85)';for(let j=0;j<NY;j+=2)for(let i=(j/2)%2;i<NX;i+=2){if(ANOM[j*NX+i])ctx.fillRect(sx(XS(i))-1.2,sy(YS(j))-1.2,2.4,2.4);}}
+  ctx.globalAlpha=1;ctx.drawImage(trail,0,0,W,H);
+  if(S.vec){ctx.strokeStyle='rgba(255,255,255,0.9)';ctx.lineWidth=1.2;const st=42;for(let Y=sy(Y1)+st/2;Y<sy(Y0);Y+=st)for(let X=sx(X0)+st/2;X<sx(X1);X+=st){const x=px2x(X),y=py2y(Y);
+      const u=samp(curU(),x,y),v=samp(curV(),x,y),h=samp(HS,x,y),s=Math.hypot(u,v);if(s<0.3)continue;const L=Math.min(st*0.9,6+s*1.6);drawArrow(ctx,X-u/s*L/2,Y+v/s*L/2,u/s*L,-v/s*L,5);}}
+  if(S.iso){if(isoDirty)buildIso();ctx.strokeStyle='rgba(255,255,255,0.62)';ctx.lineWidth=1;ctx.stroke(isoPath);ctx.lineWidth=1.8;ctx.strokeStyle='rgba(255,255,255,0.8)';ctx.stroke(isoBold);
+    ctx.font='500 10.5px IBM Plex Mono, monospace';ctx.textAlign='center';ctx.textBaseline='middle';
+    for(const l of isoLabels){const t=String(l.L);ctx.lineWidth=3;ctx.strokeStyle='rgba(7,11,20,0.75)';ctx.strokeText(t,l.X,l.Y);ctx.fillStyle='#fff';ctx.fillText(t,l.X,l.Y);}}
+  if(TRAJ){for(const [arr,col] of [[TRAJ.b,'#7ee0ff'],[TRAJ.f,'#ffb26b']]){if(arr.length<2)continue;ctx.lineWidth=2.4;ctx.strokeStyle='rgba(7,11,20,0.6)';ctx.beginPath();arr.forEach((p,i)=>i?ctx.lineTo(sx(p[0]),sy(p[1])):ctx.moveTo(sx(p[0]),sy(p[1])));ctx.stroke();
+      ctx.lineWidth=2;ctx.strokeStyle=col;ctx.stroke();ctx.fillStyle=col;for(let n=48;n<arr.length;n+=48){ctx.beginPath();ctx.arc(sx(arr[n][0]),sy(arr[n][1]),3.4,0,7);ctx.fill();}
+      const e=arr[arr.length-1];if(arr===TRAJ.f&&arr.length>3){const a=arr[arr.length-3];ctx.strokeStyle=col;drawArrow(ctx,sx(a[0]),sy(a[1]),sx(e[0])-sx(a[0]),sy(e[1])-sy(a[1]),9);}}
+    const X=sx(S.probe.x),Y=sy(S.probe.y);ctx.strokeStyle='#fff';ctx.lineWidth=1.6;ctx.beginPath();ctx.arc(X,Y,7,0,7);ctx.stroke();ctx.beginPath();ctx.moveTo(X-12,Y);ctx.lineTo(X-4,Y);ctx.moveTo(X+4,Y);ctx.lineTo(X+12,Y);ctx.moveTo(X,Y-12);ctx.lineTo(X,Y-4);ctx.moveTo(X,Y+4);ctx.lineTo(X,Y+12);ctx.stroke();}
+  if(S.mark)for(const s of S.systems){const X=sx(s.x),Y=sy(s.y);const sel=S.sel===s.id;
+    if(sel||hoverId===s.id){const q=sysParams(s);ctx.save();ctx.translate(X,Y);ctx.rotate(-s.rot*D2R);ctx.setLineDash([5,4]);ctx.lineWidth=sel?1.6:1;ctx.strokeStyle=sel?'#fff':'rgba(255,255,255,0.6)';ctx.beginPath();ctx.ellipse(0,0,q.a*sc,q.b*sc,0,0,7);ctx.stroke();ctx.restore();ctx.setLineDash([]);}
+    ctx.beginPath();ctx.arc(X,Y,13,0,7);ctx.fillStyle='rgba(255,255,255,0.93)';ctx.fill();ctx.lineWidth=sel?3:1.5;ctx.strokeStyle=s.type>0?'#2f6fe0':'#e03b3b';ctx.stroke();
+    ctx.fillStyle=s.type>0?'#1d55c2':'#d12f2f';ctx.font='700 15px IBM Plex Sans, sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(s.type>0?'V':'N',X,Y+0.5);
+    const pc=Math.round(samp(P,s.x,s.y)/100);ctx.font='500 10.5px IBM Plex Mono, monospace';ctx.lineWidth=3;ctx.strokeStyle='rgba(7,11,20,0.8)';ctx.strokeText(pc,X,Y+22);ctx.fillStyle='#fff';ctx.fillText(pc,X,Y+22);}
+  if(S.add&&hoverXY){ctx.globalAlpha=0.6;ctx.beginPath();ctx.arc(hoverXY[0],hoverXY[1],13,0,7);ctx.fillStyle='#fff';ctx.fill();ctx.fillStyle=S.add>0?'#1d55c2':'#d12f2f';ctx.font='700 15px IBM Plex Sans';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(S.add>0?'V':'N',hoverXY[0],hoverXY[1]);ctx.globalAlpha=1;}
+  ctx.restore();
+}
+
+// ====================== probe panel ======================
+const fcv=document.getElementById('forces'),fctx=fcv.getContext('2d');
+function f1(v,d=1){return (Math.round(v*10**d)/10**d).toFixed(d);}
+function updateProbe(){const box=document.getElementById('probebox');if(!S.probe){box.hidden=true;return;}box.hidden=false;
+  const {x,y}=S.probe;const [lon,lat]=inv(x,y);const f=samp(FC,x,y),gx=samp(GX,x,y),gy=samp(GY,x,y),G=Math.hypot(gx,gy),kap=samp(KAP,x,y),kf=samp(KFR,x,y),land=samp(LAND,x,y),mt=samp(MTN,x,y);
+  const nx=G>1e-9?gx/G:0,ny=G>1e-9?gy/G:0;
+  const ug=samp(UG,x,y),vg=samp(VG,x,y),ur=samp(UR,x,y),vr=samp(VR,x,y),ub=samp(UB,x,y),vb=samp(VB,x,y),us=samp(US,x,y),vs=samp(VS,x,y);
+  const Vg=Math.hypot(ug,vg),Vr=Math.hypot(ur,vr),Vs=Math.hypot(us,vs);const anom=Vg>0.05&&1+4*Vg*kap/f<0;
+  const U=curU(),V=curV();const uc=samp(U,x,y),vc=samp(V,x,y);const [dirDeg,dirName]=windFrom(uc,vc,lon,lat);
+  const al=Math.atan(kf/f)/D2R;const surf=land<0.5?'moře':mt>0.45?'hory':mt>0.2?'pahorkatina':'nížina';
+  const curv=Math.abs(kap)<1/8000e3?'téměř přímé':kap>0?'cyklonální (kolem níže)':'anticyklonální (kolem výše)';
+  const rows=[['Poloha',`${f1(lat)}° s. š., ${f1(Math.abs(lon))}° ${lon<0?'z':'v'}. d.`],['Tlak',`${f1(samp(P,x,y)/100)} hPa`],['Tlakový gradient',`${f1(G*1e3,2)} hPa/100 km`],
+    ['Coriolisův parametr f',`${f1(f*1e4,2)}·10⁻⁴ s⁻¹`],['Zakřivení izobar',curv],['Geostrofický vítr',`${f1(Vg)} m/s`],['Gradientový vítr',anom?'nemá řešení (omezeno)':`${f1(Vr)} m/s (${f1(Vr/(Vg||1),2)}× Vg)`],
+    ['Přízemní vítr 10 m',`${f1(Vs)} m/s (${Math.round(Vs*3.6)} km/h)`],['Povrch / úhel přes izobary',`${surf} / ${Math.round(al)}°`],['Rossbyho číslo',f1(Vr*Math.abs(kap)/f,2)],['Směr (zobrazený vítr)',`od ${dirName} (${Math.round(dirDeg)}°)`]];
+  document.getElementById('probeKV').innerHTML=rows.map(r=>`<b>${r[0]}</b><span>${r[1]}</span>`).join('');
+  // forces (per unit mass), m/s^2
+  let Vu,Vv,showFr=false,showCe=false;if(S.mode==='geo'){Vu=ug;Vv=vg;}else if(S.mode==='grad'){Vu=ur;Vv=vr;showCe=true;}else{Vu=ub;Vv=vb;showFr=true;showCe=true;}
+  const Fp=[-gx/RHO,-gy/RHO],Fc=[f*Vv,-f*Vu],Ff=showFr?[-kf*Vu,-kf*Vv]:[0,0];const V2=Vu*Vu+Vv*Vv;const Fe=showCe?[V2*kap*nx,V2*kap*ny]:[0,0];
+  const res=[Fp[0]+Fc[0]+Ff[0]+Fe[0],Fp[1]+Fc[1]+Ff[1]+Fe[1]];
+  const r=fcv.getBoundingClientRect(),d=Math.min(2,window.devicePixelRatio||1);fcv.width=r.width*d;fcv.height=r.height*d;const g=fctx;g.setTransform(d,0,0,d,0,0);g.clearRect(0,0,r.width,r.height);
+  const cx=r.width/2,cy=r.height/2;const mags=[Fp,Fc,Ff,Fe].map(v=>Math.hypot(v[0],v[1]));const mx=Math.max(...mags,1e-9);const K=(Math.min(cx,cy)-34)/mx;
+  // isobar through point & low/high side
+  g.save();g.setLineDash([4,4]);g.strokeStyle='rgba(255,255,255,0.35)';g.lineWidth=1;g.beginPath();g.moveTo(cx-ny*200,cy-nx*200);g.lineTo(cx+ny*200,cy+nx*200);g.stroke();g.restore();
+  g.font='600 12px IBM Plex Sans';g.textAlign='center';g.textBaseline='middle';if(G>1e-6){const rr=Math.min(cx,cy)-14;g.font='600 11px IBM Plex Sans';g.fillStyle='#ff8a8a';g.fillText('nižší tlak',cx-nx*rr,cy+ny*rr);g.fillStyle='#8fb6ff';g.fillText('vyšší tlak',cx+nx*rr,cy-ny*rr);}
+  const arrows=[[Fp,'#ff6b6b'],[Fc,'#5ab4ff'],[Ff,'#ffc145'],[Fe,'#c084fc']];
+  for(const [v,c] of arrows){if(Math.hypot(v[0],v[1])*K<2)continue;g.strokeStyle=c;g.lineWidth=2.6;drawArrow(g,cx,cy,v[0]*K,-v[1]*K,9);}
+  const Vm=Math.hypot(Vu,Vv);if(Vm>0.1){const L=Math.min(cy-14,14+Vm*4.5);g.strokeStyle='#fff';g.lineWidth=1.6;g.setLineDash([2,3]);drawArrow(g,cx,cy,Vu/Vm*L,-Vv/Vm*L,7);g.setLineDash([]);}
+  g.beginPath();g.arc(cx,cy,3,0,7);g.fillStyle='#fff';g.fill();
+  const mm=v=>f1(Math.hypot(v[0],v[1])*1e3,2);
+  document.getElementById('fleg').innerHTML=`<span><i style="background:#ff6b6b"></i>tlaková síla ${mm(Fp)}</span><span><i style="background:#5ab4ff"></i>Coriolisova ${mm(Fc)}</span>`+
+    (showFr?`<span><i style="background:#ffc145"></i>tření ${mm(Ff)}</span>`:'')+(showCe?`<span><i style="background:#c084fc"></i>odstředivá ${mm(Fe)}</span>`:'')+`<span><i style="background:#fff"></i>vítr ${f1(S.mode==='sfc'?Math.hypot(ub,vb):Vm)} m/s</span><span style="color:var(--mute)">[mm/s²]</span>`;
+  const rp=Math.round(100*Math.hypot(res[0],res[1])/(mags[0]||1));
+  let t;if(S.mode==='geo')t='Tlaková síla (od vyššího k nižšímu tlaku) je přesně vyrovnaná Coriolisovou silou, která působí kolmo vpravo od směru pohybu. Výsledkem je vítr rovnoběžný s izobarami, nízký tlak má po levé ruce.';
+  else if(S.mode==='grad')t=(anom?'Zde gradientová rovnice nemá řešení: tlaková výše je na svou velikost příliš „špičatá“. V reálné atmosféře takový stav nevydrží, tlak se rychle vyrovná. Vítr je proto omezen na 2×V<sub>g</sub>. ':'')+`Při zakřiveném pohybu se uplatní i odstředivá síla. Proudění je zde <b>${curv}</b>, takže gradientový vítr je ${Vr<Vg?'slabší':'silnější'} než geostrofický (${f1(Vr/(Vg||1),2)}×). ${Math.abs(kap)<1/8000e3?'':kap>0?'Kolem níže odstředivá síla pomáhá Coriolisově síle, vítr proto nemusí být tak rychlý.':kap<0?'Kolem výše odstředivá síla působí ve stejném směru jako tlaková síla, Coriolisova síla ji musí převážit, a tak musí být vítr rychlejší.':''}`;
+  else t=`Tření (${surf}) brzdí vzduch. Slabší vítr znamená slabší Coriolisovu sílu, která už tlakovou sílu nevyrovná, a tak se vítr stáčí o ≈${Math.round(al)}° přes izobary k nižšímu tlaku. Nad mořem je úhel menší, nad horami větší. Na jih se úhel zvětšuje, protože f klesá. Diagram ukazuje rovnováhu v přízemní vrstvě. Vítr v 10 m je ještě o ${Math.round(100*(1-samp(S10,x,y)))} % slabší.`;
+  if(rp>8&&S.mode!=='geo')t+=` <span style="color:var(--mute)">(Nevyrovnaný zbytek ${rp} % = zjednodušení modelu.)</span>`;
+  document.getElementById('explain').innerHTML=t;}
+
+// ====================== UI wiring ======================
+const $=id=>document.getElementById(id);
+const presetSel=$('preset');PRESETS.forEach((p,i)=>{const o=document.createElement('option');o.value=i;o.textContent=p.n;presetSel.appendChild(o);});
+presetSel.onchange=()=>loadPreset(+presetSel.value);
+function selSys(){return S.systems.find(s=>s.id===S.sel)||null;}
+function refreshUI(){
+  $('bg').value=S.bg;$('bgV').textContent=(S.bg>0?'+':'')+S.bg+' hPa';
+  const s=selSys();$('selbox').hidden=!s;if(s){$('tH').classList.toggle('on',s.type>0);$('tL').classList.toggle('on',s.type<0);$('amp').value=s.amp;$('ampV').textContent=(s.type>0?'+':'−')+f1(s.amp)+' hPa';
+    $('size').value=s.size;$('sizeV').textContent=Math.round(s.size)+' km';$('aspect').value=s.aspect;$('aspectV').textContent=f1(s.aspect,2)+'×';$('rot').value=s.rot;$('rotV').textContent=Math.round(s.rot)+'°';}
+  document.querySelectorAll('#modeSeg button').forEach(b=>b.classList.toggle('on',b.dataset.m===S.mode));
+  $('addH').classList.toggle('on',S.add===1);$('addL').classList.toggle('on',S.add===-1);document.body.classList.toggle('mode-add',!!S.add);
+  $('tspeed').value=S.tspeed;$('tspeedV').textContent=S.tspeed+' h/s';$('pause').textContent=S.paused?'Pokračovat':'Pauza';
+  updateLegend();}
+function changed(){fieldDirty=true;}
+$('bg').oninput=e=>{S.bg=+e.target.value;refreshUI();changed();};
+for(const [id,key] of [['amp','amp'],['size','size'],['aspect','aspect'],['rot','rot']])$(id).oninput=e=>{const s=selSys();if(!s)return;s[key]=+e.target.value;refreshUI();changed();};
+$('tH').onclick=()=>{const s=selSys();if(s){s.type=1;refreshUI();changed();}};$('tL').onclick=()=>{const s=selSys();if(s){s.type=-1;refreshUI();changed();}};
+$('del').onclick=()=>{S.systems=S.systems.filter(s=>s.id!==S.sel);S.sel=null;refreshUI();changed();};
+$('addH').onclick=()=>{S.add=S.add===1?null:1;refreshUI();};$('addL').onclick=()=>{S.add=S.add===-1?null:-1;refreshUI();};
+document.querySelectorAll('#modeSeg button').forEach(b=>b.onclick=()=>{S.mode=b.dataset.m;setModeArrays();computeTraj();clearTrails();refreshUI();updateProbe();});
+$('cPart').onchange=e=>{S.part=e.target.checked;};$('cIso').onchange=e=>{S.iso=e.target.checked;};$('cVec').onchange=e=>{S.vec=e.target.checked;};$('cMark').onchange=e=>{S.mark=e.target.checked;};
+$('layer').onchange=e=>{S.layer=e.target.value;rasterDirty=true;updateLegend();};
+$('tspeed').oninput=e=>{S.tspeed=+e.target.value;refreshUI();};$('pause').onclick=()=>{S.paused=!S.paused;refreshUI();};$('resetT').onclick=()=>{resetTracers(false);};
+$('probeOff').onclick=()=>{S.probe=null;TRAJ=null;updateProbe();};
+
+// pointer interaction
+let drag=null,hoverId=null,hoverXY=null;
+function evXY(e){const r=cv.getBoundingClientRect();return [e.clientX-r.left,e.clientY-r.top];}
+function hitSys(X,Y){if(!S.mark)return null;let best=null,bd=18*18;for(const s of S.systems){const d=(sx(s.x)-X)**2+(sy(s.y)-Y)**2;if(d<bd){bd=d;best=s;}}return best;}
+function ellRho(s,q,x,y){const dx=x-s.x,dy=y-s.y;const u=(dx*q.c+dy*q.s)/q.a,v=(-dx*q.s+dy*q.c)/q.b;return Math.sqrt(u*u+v*v);}
+function hitEdge(X,Y){const s=selSys();if(!s||!S.mark)return null;const q=sysParams(s);const r=ellRho(s,q,px2x(X),py2y(Y));return Math.abs(r-1)*Math.min(q.a,q.b)*sc<8?s:null;}
+cv.addEventListener('pointerdown',e=>{const [X,Y]=evXY(e);cv.setPointerCapture(e.pointerId);
+  if(S.add){const x=px2x(X),y=py2y(Y);if(inside(x,y)){const s={id:S.nextId++,type:S.add,x,y,amp:14,size:800,aspect:1.3,rot:0};S.systems.push(s);S.sel=s.id;S.add=null;refreshUI();changed();}drag=null;return;}
+  const s=hitSys(X,Y);if(s){S.sel=s.id;drag={k:'move',s,X,Y,x0:s.x,y0:s.y};refreshUI();return;}
+  const se=hitEdge(X,Y);if(se){const q=sysParams(se);drag={k:'edge',s:se,q,size0:se.size,r0:ellRho(se,q,px2x(X),py2y(Y))};return;}
+  drag={k:'click',X,Y};});
+cv.addEventListener('pointermove',e=>{const [X,Y]=evXY(e);hoverXY=[X,Y];
+  if(drag&&drag.k==='move'){drag.s.x=Math.max(X0,Math.min(X1,drag.x0+(X-drag.X)/sc));drag.s.y=Math.max(Y0,Math.min(Y1,drag.y0-(Y-drag.Y)/sc));changed();}
+  else if(drag&&drag.k==='edge'){const r=ellRho(drag.s,drag.q,px2x(X),py2y(Y));drag.s.size=Math.max(250,Math.min(2500,drag.size0*r/drag.r0));refreshUI();changed();}
+  else{const h=hitSys(X,Y);hoverId=h?h.id:null;cv.style.cursor=S.add?'crosshair':h?'grab':hitEdge(X,Y)?'nwse-resize':'default';}
+  updateCursor(X,Y);});
+cv.addEventListener('pointerup',e=>{const [X,Y]=evXY(e);if(drag&&drag.k==='click'&&Math.hypot(X-drag.X,Y-drag.Y)<5){const x=px2x(X),y=py2y(Y);if(inside(x,y)){S.probe={x,y};S.sel=null;refreshUI();computeTraj();updateProbe();}}
+  if(drag&&drag.k!=='click')updateProbe();drag=null;});
+cv.addEventListener('pointerleave',()=>{hoverXY=null;$('cursor').hidden=true;});
+cv.addEventListener('wheel',e=>{const [X,Y]=evXY(e);const s=hitSys(X,Y)||(selSys()&&ellRho(selSys(),sysParams(selSys()),px2x(X),py2y(Y))<1?selSys():null);if(!s)return;e.preventDefault();
+  const f=Math.exp(-Math.sign(e.deltaY)*0.07);if(e.shiftKey)s.amp=Math.max(2,Math.min(45,s.amp*f));else s.size=Math.max(250,Math.min(2500,s.size*f));S.sel=s.id;refreshUI();changed();},{passive:false});
+window.addEventListener('keydown',e=>{if(e.target.tagName==='INPUT'||e.target.tagName==='SELECT')return;if((e.key==='Delete'||e.key==='Backspace')&&S.sel){$('del').click();e.preventDefault();}
+  if(e.key==='Escape'){S.add=null;S.sel=null;refreshUI();}});
+function updateCursor(X,Y){const x=px2x(X),y=py2y(Y),el=$('cursor');if(!inside(x,y)){el.hidden=true;return;}el.hidden=false;const [lon,lat]=inv(x,y);
+  const u=samp(curU(),x,y),v=samp(curV(),x,y);const [d,n]=windFrom(u,v,lon,lat);
+  let extra='';if(S.layer==='temp')extra=` · ${f1(samp(T,x,y))} °C`;else if(S.layer==='dust')extra=` · prach ${f1(samp(DU,x,y),2)}`;
+  el.textContent=`${f1(lat)}°N ${f1(lon)}°E · ${f1(samp(P,x,y)/100)} hPa · ${f1(Math.hypot(u,v))} m/s od ${n}${extra}`;}
+
+// ====================== main loop ======================
+let last=performance.now(),probeTick=0;
+function frame(now){const el=Math.min(0.1,(now-last)/1000);last=now;const fr=el*60;
+  if(fieldDirty){compute();probeTick=1;}
+  if(!S.paused){let dt=S.tspeed*3600*el;const sub=Math.ceil(dt/(3*3600));for(let n=0;n<sub;n++)stepTracers(dt/sub);}
+  stepParticles(Math.max(0.3,fr));draw();
+  if(probeTick&&S.probe&&!drag){updateProbe();probeTick=0;}else if(probeTick&&S.probe&&drag&&((now|0)%3===0)){updateProbe();}
+  const d=Math.floor(S.simT/86400),h=Math.floor((S.simT%86400)/3600);$('clock').textContent=`stopovače: +${d} d ${String(h).padStart(2,'0')} h${S.paused?' (pauza)':''}`;
+  requestAnimationFrame(frame);}
+window.addEventListener('resize',()=>{resize();});
+resize();presetSel.value=0;loadPreset(0);refreshUI();requestAnimationFrame(frame);
+</script>
+</body>
+</html>

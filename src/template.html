@@ -1,0 +1,800 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tlakové pole a vítr nad Evropou</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#070b14; --panel:#0e1524; --panel2:#141d30; --line:#223050; --text:#dce4f2; --mute:#8b99b5;
+  --acc:#7cc4ff; --warn:#e879f9;
+  --font:'IBM Plex Sans',system-ui,-apple-system,Segoe UI,Roboto,sans-serif; --mono:'IBM Plex Mono',ui-monospace,Menlo,monospace;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font:14px/1.45 var(--font);overflow:hidden}
+#app{display:flex;height:100vh;width:100vw}
+#mapwrap{position:relative;flex:1;min-width:0;overflow:hidden}
+#map{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none}
+#panel{width:350px;flex:none;background:var(--panel);border-left:1px solid var(--line);overflow-y:auto;padding:14px 16px 40px}
+h1{font-size:17px;font-weight:600;margin:0 0 2px;letter-spacing:.01em}
+.sub{color:var(--mute);font-size:12.5px;margin-bottom:12px}
+section{border-top:1px solid var(--line);padding:12px 0 10px}
+section h2{font-size:11.5px;text-transform:uppercase;letter-spacing:.09em;color:var(--mute);margin:0 0 9px;font-weight:600}
+h3.mini{font-size:12.5px;font-weight:600;margin:12px 0 4px;color:#e9eefa}
+label.row{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:7px 0;font-size:13px}
+label.row span.v{font-family:var(--mono);font-size:12px;color:var(--acc);min-width:66px;text-align:right}
+select,button{font:inherit;color:var(--text);background:var(--panel2);border:1px solid var(--line);border-radius:6px;padding:6px 9px}
+select{width:100%;cursor:pointer}
+button{cursor:pointer}
+button:hover,select:hover{border-color:#36507f}
+button.on{background:#1d3157;border-color:var(--acc)}
+.btns{display:flex;gap:6px;flex-wrap:wrap}
+.btns button{flex:1}
+.btns.sm button{font-size:12.5px;padding:5px 6px}
+.seg{display:flex;border:1px solid var(--line);border-radius:7px;overflow:hidden}
+.seg button{flex:1;border:0;border-radius:0;padding:7px 3px;font-size:12px;background:transparent}
+.seg button+button{border-left:1px solid var(--line)}
+.seg button.on{background:#1d3157;color:#fff}
+input[type=range]{flex:1;max-width:140px;accent-color:var(--acc)}
+.chk{display:flex;gap:6px 14px;flex-wrap:wrap;margin-top:9px;font-size:13px}
+.chk label{display:flex;gap:5px;align-items:center;cursor:pointer}
+.note{font-size:12px;color:var(--mute);margin-top:6px}
+[hidden]{display:none!important}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:2px 10px;font-size:12.5px;margin:6px 0 8px}
+.kv b{font-weight:500;color:var(--mute)}
+.kv span{font-family:var(--mono);font-size:12px;text-align:right}
+#forces{width:100%;height:210px;background:#0a101c;border:1px solid var(--line);border-radius:8px;display:block}
+.flegend{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:12px;margin-top:6px}
+.flegend i{display:inline-block;width:10px;height:3px;border-radius:2px;margin-right:5px;vertical-align:middle}
+.explain{font-size:12.5px;color:#c3cde0;margin-top:8px}
+.wb{display:grid;grid-template-columns:118px 1fr 58px;align-items:center;gap:6px;font-size:11.8px;margin:3px 0}
+.wb .bar{position:relative;height:9px;background:#0a101c;border:1px solid var(--line);border-radius:3px}
+.wb .bar i{position:absolute;top:0;bottom:0;border-radius:2px}
+.wb .bar:after{content:'';position:absolute;left:50%;top:-2px;bottom:-2px;width:1px;background:#4a5c80}
+.wb span{font-family:var(--mono);font-size:11.5px;text-align:right}
+.wb.tot{font-weight:600}
+details{font-size:12.5px;color:#c3cde0}
+details summary{cursor:pointer;color:var(--text);font-weight:500;margin-bottom:6px}
+details p{margin:6px 0}
+code{font-family:var(--mono);font-size:11.5px;background:#18223a;padding:1px 4px;border-radius:4px}
+.hud{position:absolute;pointer-events:none;font-size:12px;background:rgba(7,11,20,.78);border:1px solid rgba(124,196,255,.18);border-radius:7px;padding:6px 9px;backdrop-filter:blur(4px)}
+#hint{left:12px;top:12px;max-width:min(600px,calc(100% - 230px));color:#c3cde0}
+#hint kbd{font-family:var(--mono);font-size:11px;background:#1b2741;border:1px solid #2c3d63;border-radius:4px;padding:0 4px}
+#cursor{right:12px;bottom:12px;font-family:var(--mono);font-size:11.5px;white-space:nowrap}
+#legend{left:12px;bottom:12px;width:290px}
+#legend canvas{width:100%;height:10px;display:block;border-radius:3px;margin:4px 0 2px}
+#legend .ticks{display:flex;justify-content:space-between;font-family:var(--mono);font-size:10.5px;color:var(--mute)}
+#legend .ttl{font-size:11.5px;color:#c3cde0}
+#legend .x{font-size:11px;color:var(--mute);margin-top:3px}
+#clock{right:12px;top:12px;font-family:var(--mono);font-size:11.5px}
+@media (max-width:820px){
+  #app{flex-direction:column}
+  #mapwrap{flex:none;height:58vh}
+  #panel{width:100%;border-left:0;border-top:1px solid var(--line);flex:1}
+  #hint{display:none}
+  #legend{width:210px}
+}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="mapwrap">
+    <canvas id="map"></canvas>
+    <div id="hint" class="hud"><b>Táhni</b> značky V / N &nbsp;·&nbsp; <kbd>kolečko</kbd> velikost &nbsp;·&nbsp; <kbd>Shift</kbd>+<kbd>kolečko</kbd> intenzita &nbsp;·&nbsp; <b>klik</b> do mapy = sonda „proč?“ &nbsp;·&nbsp; <b>štětcem</b> přidáš studený / teplý / vlhký / suchý vzduch</div>
+    <div id="clock" class="hud"></div>
+    <div id="legend" class="hud"><div class="ttl" id="legTitle"></div><canvas id="legBar" width="290" height="10"></canvas><div class="ticks" id="legTicks"></div><div class="x" id="legX"></div></div>
+    <div id="cursor" class="hud" hidden></div>
+  </div>
+  <aside id="panel">
+    <h1>Tlak → vítr → oblačnost</h1>
+    <div class="sub">Zjednodušený, ale fyzikálně založený model chladného pololetí nad Evropou. Pohni tlakovým systémem nebo vzduchovou hmotou a sonda ukáže, proč vznikla oblačnost.</div>
+
+    <section>
+      <h2>Situace</h2>
+      <select id="preset"></select>
+      <div class="btns" style="margin-top:8px">
+        <button id="addH" title="Klikni potom do mapy">+ Tlaková výše</button>
+        <button id="addL" title="Klikni potom do mapy">+ Tlaková níže</button>
+      </div>
+      <label class="row" title="Velkoprostorový pokles tlaku k severu. Kladné = západní proudění, záporné = východní.">Zonální pozadí <input type="range" id="bg" min="-20" max="30" step="1"><span class="v" id="bgV"></span></label>
+    </section>
+
+    <section id="selbox" hidden>
+      <h2>Vybraný systém</h2>
+      <div class="seg" style="margin-bottom:6px"><button id="tH">Výše (V)</button><button id="tL">Níže (N)</button></div>
+      <label class="row">Intenzita <input type="range" id="amp" min="2" max="45" step="0.5"><span class="v" id="ampV"></span></label>
+      <label class="row">Poloměr <input type="range" id="size" min="250" max="2500" step="10"><span class="v" id="sizeV"></span></label>
+      <label class="row">Protažení <input type="range" id="aspect" min="1" max="3.5" step="0.05"><span class="v" id="aspectV"></span></label>
+      <label class="row">Natočení <input type="range" id="rot" min="0" max="179" step="1"><span class="v" id="rotV"></span></label>
+      <div class="btns"><button id="del">Odstranit systém</button></div>
+    </section>
+
+    <section>
+      <h2>Vzduchové hmoty a moře</h2>
+      <label class="row" title="Zeměpisná šířka, kolem které leží rozhraní studeného a teplého vzduchu (polární fronta) v klimatologii.">Polární fronta <input type="range" id="pfLat" min="40" max="62" step="0.5"><span class="v" id="pfLatV"></span></label>
+      <label class="row" title="Teplotní rozdíl mezi vzduchem jižně a severně od polární fronty (850 hPa).">Teplotní kontrast <input type="range" id="pfDT" min="6" max="32" step="1"><span class="v" id="pfDTV"></span></label>
+      <label class="row" title="Odchylka teploty povrchu Atlantiku, Severního a Baltského moře.">Teplota Atlantiku <input type="range" id="sstA" min="-4" max="4" step="0.5"><span class="v" id="sstAV"></span></label>
+      <label class="row" title="Odchylka teploty Středozemního a Černého moře.">Teplota Středomoří <input type="range" id="sstM" min="-4" max="5" step="0.5"><span class="v" id="sstMV"></span></label>
+      <div class="note" style="margin-bottom:4px">Štětec: drž tlačítko myši a maluj do mapy</div>
+      <div class="btns sm" id="brushes">
+        <button data-b="cold">❄ studený</button><button data-b="warm">☀ teplý</button><button data-b="moist">💧 vlhký</button><button data-b="dry">◌ suchý</button>
+      </div>
+    </section>
+
+    <section>
+      <h2>Vítr</h2>
+      <div class="seg" id="modeSeg">
+        <button data-m="geo" title="Rovnováha tlakové a Coriolisovy síly">Geostrof.</button>
+        <button data-m="grad" title="+ zakřivení izobar; ≈ 850 hPa, bez tření. Tímto větrem se unášejí vzduchové hmoty.">Gradient.</button>
+        <button data-m="sfc" title="+ tření o povrch (10 m nad zemí)">10 m</button>
+        <button data-m="jet" title="300 hPa: přízemní geostrofický + termický vítr z teplotního gradientu">Jet 300 hPa</button>
+      </div>
+      <div class="chk">
+        <label><input type="checkbox" id="cPart" checked> částice</label>
+        <label><input type="checkbox" id="cIso" checked> izobary</label>
+        <label><input type="checkbox" id="cIsoT"> izotermy 850</label>
+        <label><input type="checkbox" id="cFront" checked> fronty</label>
+        <label><input type="checkbox" id="cQ"> Q-vektory</label>
+        <label><input type="checkbox" id="cVec"> šipky</label>
+        <label><input type="checkbox" id="cMark" checked> značky V/N</label>
+      </div>
+    </section>
+
+    <section>
+      <h2>Vrstva v pozadí</h2>
+      <select id="layer">
+        <option value="cloud">Oblačnost (simulovaný družicový snímek)</option>
+        <option value="precip">Srážky (déšť / sníh)</option>
+        <option value="vvel">Vertikální pohyby (výstup / sestup)</option>
+        <option value="rh">Relativní vlhkost</option>
+        <option value="temp">Teplota 850 hPa</option>
+        <option value="speed">Rychlost větru</option>
+        <option value="pres">Tlak přepočtený na hladinu moře</option>
+        <option value="dust">Saharský prach (stopovač)</option>
+        <option value="rough">Drsnost a výška terénu</option>
+      </select>
+      <div class="seg" id="wSeg" style="margin-top:8px">
+        <button data-w="tot">celkem</button><button data-w="dyn" title="Q-vektory: fronty, teplá advekce, brázdy">fronty/Q</button><button data-w="ek" title="Sbíhavost větru v přízemní vrstvě (tření)">mezní vrstva</button><button data-w="oro">hory</button>
+      </div>
+      <label class="row" title="Jak rychle běží simulovaný čas pro vzduchové hmoty, vlhkost a oblačnost">Rychlost času <input type="range" id="tspeed" min="1" max="24" step="1"><span class="v" id="tspeedV"></span></label>
+      <div class="btns"><button id="pause">Pauza</button><button id="resetT">Reset vzduch. hmot</button></div>
+    </section>
+
+    <section id="probebox" hidden>
+      <h2>Sonda</h2>
+      <div class="kv" id="probeKV"></div>
+      <h3 class="mini">Počasí v bodě – proč?</h3>
+      <div class="kv" id="wxKV"></div>
+      <div id="wbars"></div>
+      <div class="explain" id="wxExplain"></div>
+      <h3 class="mini">Vítr a síly</h3>
+      <canvas id="forces"></canvas>
+      <div class="flegend" id="fleg"></div>
+      <div class="explain" id="explain"></div>
+      <div class="note"><span style="color:#ffb26b">━</span> kam vzduch doputuje (72 h) &nbsp; <span style="color:#7ee0ff">━</span> odkud přichází (72 h), tečky po 24 h</div>
+      <div class="btns" style="margin-top:8px"><button id="probeOff">Zrušit sondu</button></div>
+    </section>
+
+    <section>
+      <details>
+        <summary>Co se tu vlastně počítá</summary>
+        <p><b>Tlakové pole</b> (ovládáš ty) = 1013 hPa + zonální pozadí + eliptické výše a níže. Z něj se počítá vítr: <b>geostrofický</b> <code>V = (1/ρf)·k × ∇p</code>, <b>gradientový</b> (+ zakřivení izobar, <code>V²κ + fV = fV<sub>g</sub></code>) a <b>přízemní</b> (lineární tření stočí vítr o <code>atan(k/f)</code> k nižšímu tlaku).</p>
+        <p><b>Vzduchové hmoty:</b> teplotu ve 850 hPa a vlhkost unáší gradientový vítr. Pomalu se vracejí ke klimatologii chladného pololetí (polární fronta). Nad mořem se vzduch otepluje a zvlhčuje, tím víc, čím je studenější než moře.</p>
+        <p><b>Výškový vítr</b> = přízemní geostrofický + <b>termický vítr</b> <code>(R/f)·ln(p₀/p)·k × ∇T</code>. Nad teplotním kontrastem tak vzniká tryskové proudění.</p>
+        <p><b>Vertikální pohyby</b> mají tři příčiny:</p>
+        <p>① <b>Q-vektory</b> (kvazigeostrofická omega rovnice <code>(σ∇² − f²π²/Δp²)ω = −2∇·Q</code>, kde <code>Q = −(R/p)(∂V<sub>g</sub>/∂x·∇T, ∂V<sub>g</sub>/∂y·∇T)</code>): výstup na frontách a při teplé advekci, sestup za studenou frontou. Řeší se iteračně na mřížce.<br>② <b>Ekmanovo čerpání</b>: tření stáčí vítr do níží, vzduch se tam sbíhá a stoupá. Ve výších se rozbíhá a klesá.<br>③ <b>Hory</b>: proudění proti svahu vzduch zvedá, na závětrné straně klesá (fén).</p>
+        <p><b>Oblačnost a srážky:</b> stoupající vzduch se ochlazuje, takže nasycení klesá jako <code>q<sub>s</sub>·e<sup>−γz</sup></code>. Nadbytečná vodní pára zkondenzuje na oblačnou vodu, ta se unáší, při sestupu se vypařuje a nad prahem vypadává jako srážky. Kde je vzduch ve 850 hPa o víc než ~13 K studenější než moře, vznikají <b>přeháňkové buňky</b>.</p>
+        <p><b>Fronty</b> se nekreslí ručně. Detekují se jako osy maxima teplotního gradientu (zostřeného deformací proudění). Podle advekce přes frontu se určí, zda je teplá, nebo studená.</p>
+        <p><b>Co tu není:</b> vývoj a postup tlakových systémů, zpětná vazba teploty na tlak, uvolněné latentní teplo, inverzní oblačnost a mlhy, denní chod, letní konvekce. Hory jsou přibližné elipsy. Tlak je stacionární, takže fronty dosáhnou rovnovážného tvaru a dál se nevyvíjejí.</p>
+        <p class="note">Data pobřeží: Natural Earth (public domain).</p>
+      </details>
+    </section>
+  </aside>
+</div>
+
+<script>const GEO=/*GEO*/;</script>
+<script>
+'use strict';
+// ====================== constants & projection ======================
+const D2R=Math.PI/180, R_E=6371, OMEGA=7.292e-5, RHO=1.225, RD=287;
+const LON0=10, LAT0=50, sinP1=Math.sin(LAT0*D2R), cosP1=Math.cos(LAT0*D2R);
+const X0=-3800, X1=3800, Y0=-2850, Y1=2700, DX=50;
+const NX=Math.round((X1-X0)/DX)+1, NY=Math.round((Y1-Y0)/DX)+1, N=NX*NY, DM=DX*1000;
+function fwd(lon,lat){const l=(lon-LON0)*D2R,p=lat*D2R,cp=Math.cos(p),sp=Math.sin(p),cl=Math.cos(l);const k=2*R_E/(1+sinP1*sp+cosP1*cp*cl);return [k*cp*Math.sin(l),k*(cosP1*sp-sinP1*cp*cl)];}
+function inv(x,y){const rho=Math.hypot(x,y);if(rho<1e-9)return [LON0,LAT0];const c=2*Math.atan(rho/(2*R_E)),sc=Math.sin(c),cc=Math.cos(c);
+  const lat=Math.asin(cc*sinP1+y*sc*cosP1/rho);const lon=LON0*D2R+Math.atan2(x*sc,rho*cosP1*cc-y*sinP1*sc);return [lon/D2R,lat/D2R];}
+const XS=i=>X0+i*DX, YS=j=>Y1-j*DX;
+const clamp=(v,a,b)=>v<a?a:v>b?b:v;
+const F32=()=>new Float32Array(N);
+
+const LAT=F32(), LON=F32(), HS=F32(), FC=F32();
+for(let j=0;j<NY;j++)for(let i=0;i<NX;i++){const k=j*NX+i,x=XS(i),y=YS(j);const [lo,la]=inv(x,y);LAT[k]=la;LON[k]=lo;
+  HS[k]=1+(x*x+y*y)/(4*R_E*R_E); FC[k]=2*OMEGA*Math.sin(Math.max(la,15)*D2R);}
+
+// ---------- grid helpers ----------
+const TMPA=F32(), TMPB=F32();
+function smooth(src,dst,passes){ // 3x3 weighted, edges clamped
+  let a=src;for(let p=0;p<passes;p++){const out=(p===passes-1)?dst:(p%2?TMPB:TMPA);
+    for(let j=0;j<NY;j++){const jn=j>0?j-1:0,js=j<NY-1?j+1:j;for(let i=0;i<NX;i++){const iw=i>0?i-1:0,ie=i<NX-1?i+1:i;
+      out[j*NX+i]=(4*a[j*NX+i]+2*(a[j*NX+iw]+a[j*NX+ie]+a[jn*NX+i]+a[js*NX+i])+a[jn*NX+iw]+a[jn*NX+ie]+a[js*NX+iw]+a[js*NX+ie])/16;}}a=out;}
+  if(passes===0)dst.set(src);}
+function grad(A,gx,gy){ // physical gradient per metre (plane axes)
+  for(let j=0;j<NY;j++){const jn=j>0?j-1:0,js=j<NY-1?j+1:j;for(let i=0;i<NX;i++){const iw=i>0?i-1:0,ie=i<NX-1?i+1:i,k=j*NX+i;
+    gx[k]=HS[k]*(A[j*NX+ie]-A[j*NX+iw])/((ie-iw)*DM);gy[k]=HS[k]*(A[jn*NX+i]-A[js*NX+i])/((js-jn)*DM);}}}
+function div(U,V,out){for(let j=0;j<NY;j++){const jn=j>0?j-1:0,js=j<NY-1?j+1:j;for(let i=0;i<NX;i++){const iw=i>0?i-1:0,ie=i<NX-1?i+1:i,k=j*NX+i;
+    out[k]=HS[k]*((U[j*NX+ie]-U[j*NX+iw])/((ie-iw)*DM)+(V[jn*NX+i]-V[js*NX+i])/((js-jn)*DM));}}}
+
+// ====================== geography ======================
+function decode(enc){const pts=[];let x=enc[0],y=enc[1];pts.push([x,y]);for(let i=2;i<enc.length;i+=2){x+=enc[i];y+=enc[i+1];pts.push([x,y]);}return pts;}
+const LANDR=GEO.land.map(decode), LAKER=GEO.lakes.map(decode);
+const LAND=F32(), LANDS=F32(), MTN=F32(), KFR=F32(), S10=F32(), ROUGH=F32(), TERR=F32(), TERRX=F32(), TERRY=F32();
+(function buildMasks(){
+  const c=document.createElement('canvas');c.width=NX;c.height=NY;const g=c.getContext('2d');
+  g.setTransform(1/DX,0,0,-1/DX,-X0/DX+0.5,Y1/DX+0.5);
+  const p=new Path2D();for(const r of LANDR.concat(LAKER)){p.moveTo(r[0][0],r[0][1]);for(let i=1;i<r.length;i++)p.lineTo(r[i][0],r[i][1]);p.closePath();}
+  g.fillStyle='#fff';g.fill(p,'evenodd');
+  const d=g.getImageData(0,0,NX,NY).data;for(let k=0;k<N;k++)LAND[k]=d[k*4+3]/255;
+  // orography: lon,lat, semi-axes a,b [km], angle [deg], height factor (×2200 m)
+  const M=[[7,45.4,210,110,75,1],[11.6,46.9,380,110,8,1],[0.6,42.7,240,60,-5,.8],[20,49.2,260,70,12,.55],[24.6,47.6,200,70,-60,.55],[24.6,45.5,230,60,3,.6],
+    [17.5,43.6,420,90,-38,.6],[24.6,42.2,300,110,0,.5],[13.2,63.8,800,130,58,.65],[8,61.2,260,190,20,.7],[44,42.9,560,90,-22,1],[-3,32.3,750,140,25,.75],
+    [34,39,720,300,0,.6],[-4,40,420,300,0,.4],[13.5,42.6,460,70,-52,.5],[-4.6,57.1,170,110,30,.4],[-18.6,64.9,230,120,0,.6],[-41,71,900,520,75,1],
+    [2.8,45.3,140,110,0,.35],[14,49.8,260,170,15,.3],[8.3,48.3,130,70,80,.3],[-3.5,37.2,200,60,10,.5],[42.5,38.8,450,250,0,.7],[36,34.2,220,60,80,.4],[-6,53,90,60,0,.2]];
+  const Mp=M.map(m=>{const [x,y]=fwd(m[0],m[1]);return {x,y,a:m[2],b:m[3],c:Math.cos(m[4]*D2R),s:Math.sin(m[4]*D2R),h:m[5]};});
+  for(let j=0;j<NY;j++)for(let i=0;i<NX;i++){const k=j*NX+i,x=XS(i),y=YS(j);let h=0;
+    for(const m of Mp){const dx=x-m.x,dy=y-m.y,u=(dx*m.c+dy*m.s)/m.a,v=(-dx*m.s+dy*m.c)/m.b,q=u*u+v*v;if(q<9){const e=m.h*Math.exp(-q);if(e>h)h=e;}}
+    MTN[k]=Math.min(1,h);const L=LAND[k];
+    ROUGH[k]=L*(0.3+0.7*MTN[k]);
+    KFR[k]=3.5e-5*(1-L)+L*(6.5e-5+7e-5*MTN[k]);
+    S10[k]=0.84*(1-L)+L*(0.66-0.16*MTN[k]);
+    TERR[k]=L*(120+2200*MTN[k]);}
+  smooth(LAND,LANDS,6);
+  smooth(TERR,TMPB,1);TERR.set(TMPB);grad(TERR,TERRX,TERRY);
+})();
+
+// sea regions and surface temperature (winter)
+const SEA=new Uint8Array(N), REG=new Uint8Array(N), SST=F32();
+for(let k=0;k<N;k++){const la=LAT[k],lo=LON[k];SEA[k]=LAND[k]<0.5?1:0;let r=0;           // 0 Atlantic
+  if(lo>46.5&&la>36&&la<47.5)r=5;                                                   // Caspian
+  else if(lo>=27.5&&lo<=42&&la>=40.9&&la<=47.5)r=2;                                 // Black Sea
+  else if(la>=30&&la<=46.5&&lo>-5.6&&lo<=37&&!(lo<0&&la>42))r=1;                    // Mediterranean
+  else if(lo>=10.5&&lo<=30.5&&la>=53.5&&la<=66)r=3;                                 // Baltic
+  else if(lo>=-4&&lo<10.5&&la>=51&&la<=61.5)r=4;                                    // North Sea
+  REG[k]=r;}
+const SEA_ANOM={atl:0,med:0};
+function buildSST(){for(let k=0;k<N;k++){const la=LAT[k],lo=LON[k],a=SEA_ANOM.atl,m=SEA_ANOM.med;let s;
+  switch(REG[k]){case 1:s=14.5+0.08*lo+m;break;case 2:s=9+0.6*m;break;case 3:s=(la<60?3:1.5)+0.5*a;break;case 4:s=7.5+a;break;case 5:s=7;break;
+    default:s=19.5-0.5*(la-30)+(la>55&&lo>-20&&lo<25?2.5*Math.min(1,(la-55)/5):0)+a;}
+  SST[k]=Math.max(-1.5,s);}}
+buildSST();
+
+// ====================== state ======================
+const S={systems:[],bg:0,mode:'sfc',layer:'cloud',wcomp:'tot',part:true,iso:true,isoT:false,front:true,qv:false,vec:false,mark:true,
+  sel:null,add:null,brush:null,probe:null,tspeed:6,paused:false,simT:0,acc:0,nextId:1,pfLat:50,pfDT:20};
+const PRESETS=[
+ {n:'Frontální níže u Britských ostrovů',bg:2,pf:50,dT:20,s:[[-1,-10,57,26,850,1.3,30],[1,-24,38,13,1200,1.7,10],[1,38,52,12,1100,1.3,0]]},
+ {n:'Zonální západní proudění',bg:8,pf:52,dT:20,s:[[1,-25,37,14,1100,1.9,8],[-1,-19,63,22,1000,1.5,15],[-1,18,68,10,700,1.3,0]]},
+ {n:'Klimatologie – zima (Azory, Island, Sibiř)',bg:3,pf:50,dT:18,s:[[1,-28,36,10,1200,1.8,5],[-1,-26,62,18,1250,1.6,20],[1,52,52,18,1300,1.4,-10]]},
+ {n:'Omega blokáda nad Skandinávií',bg:0,pf:52,dT:18,s:[[1,12,60,20,800,1.5,90],[-1,-14,50,16,650,1.2,60],[-1,34,48,14,650,1.2,120],[1,-32,35,8,1000,1.5,0]]},
+ {n:'Rexova blokáda (výše nad níží)',bg:0,pf:50,dT:18,s:[[1,8,61,20,800,1.6,0],[-1,9,43,11,550,1.4,0]]},
+ {n:'Cyklóna Vb – povodňová situace',bg:0,pf:47,dT:18,s:[[-1,18,49,17,550,1.2,30],[1,-12,52,14,1000,1.4,80],[1,34,60,8,900,1.2,0]]},
+ {n:'Jižní advekce – saharský vzduch',bg:0,pf:48,dT:20,s:[[-1,-17,47,22,950,1.5,70],[1,30,44,14,1000,1.3,0]]},
+ {n:'Výše nad Tureckem a Černým mořem',bg:2,pf:48,dT:18,s:[[-1,-10,49,18,850,1.4,70],[1,34,41,14,800,1.5,0],[1,-30,36,10,1000,1.6,0]]},
+ {n:'Severní vpád arktického vzduchu (přeháňky)',bg:0,pf:50,dT:22,s:[[1,-20,62,22,1000,1.3,90],[-1,23,57,18,800,1.2,40]]},
+ {n:'Sibiřská anticyklona – mrazivé východní proudění',bg:-2,pf:48,dT:22,s:[[1,44,58,24,1300,1.4,0],[-1,-12,45,12,900,1.3,0]]},
+ {n:'Prázdná mapa (1013 hPa)',bg:0,pf:50,dT:20,s:[]}
+];
+function mkSys(type,lon,lat,amp,size,aspect,rot){const [x,y]=fwd(lon,lat);return {id:S.nextId++,type,x,y,amp,size,aspect,rot};}
+function loadPreset(ix){const p=PRESETS[ix];S.bg=p.bg;S.pfLat=p.pf;S.pfDT=p.dT;SEA_ANOM.atl=0;SEA_ANOM.med=0;buildSST();buildTEQ();
+  S.systems=p.s.map(a=>mkSys(...a));S.sel=null;S.probe=null;refreshUI();compute();resetTracers(true);clearTrails();updateProbe();}
+
+// ====================== pressure & wind ======================
+const P=F32(),GX=F32(),GY=F32(),NXv=F32(),NYv=F32(),KAP=F32();
+const UG=F32(),VG=F32(),UR=F32(),VR=F32(),UB=F32(),VB=F32(),US=F32(),VS=F32(),U3=F32(),V3=F32(),U7=F32(),V7=F32();
+const ANOM=new Uint8Array(N),SPD=F32(),PU=F32(),PV=F32(),TU=F32(),TV=F32();
+const WE=F32(),WO=F32(),WD=F32(),WT=F32();
+let rasterDirty=true,isoDirty=true,isoTDirty=true,frontsDirty=true,velTexDirty=true;
+
+function bgP(lat){const t=clamp((lat-50)/30,-1,1);return -S.bg*50*Math.sin(t*Math.PI/2);}
+function sysParams(s){const sq=Math.sqrt(s.aspect);return {a:s.size*sq,b:s.size/sq,c:Math.cos(s.rot*D2R),s:Math.sin(s.rot*D2R)};}
+function compute(){
+  const sp=S.systems.map(s=>Object.assign({o:s},sysParams(s)));
+  for(let j=0;j<NY;j++){const y=YS(j);for(let i=0;i<NX;i++){const k=j*NX+i,x=XS(i);let p=101300+bgP(LAT[k]);
+    for(const q of sp){const s=q.o,dx=x-s.x,dy=y-s.y,u=(dx*q.c+dy*q.s)/q.a,v=(-dx*q.s+dy*q.c)/q.b,r=u*u+v*v;if(r<40)p+=s.type*s.amp*100*Math.exp(-0.5*r);}
+    P[k]=p;}}
+  grad(P,GX,GY);
+  for(let k=0;k<N;k++){const G=Math.hypot(GX[k],GY[k]);if(G>3e-5){NXv[k]=GX[k]/G;NYv[k]=GY[k]/G;}else{NXv[k]=0;NYv[k]=0;}}
+  div(NXv,NYv,TMPA);smooth(TMPA,KAP,1);for(let k=0;k<N;k++)KAP[k]=clamp(KAP[k],-1/150e3,1/150e3);
+  for(let k=0;k<N;k++){const f=FC[k];const ug=-GY[k]/(RHO*f),vg=GX[k]/(RHO*f);UG[k]=ug;VG[k]=vg;
+    const Vg=Math.hypot(ug,vg);let ratio=1;ANOM[k]=0;
+    if(Vg>0.05){const disc=1+4*Vg*KAP[k]/f;if(disc>=0)ratio=2/(1+Math.sqrt(disc));else{ratio=2;ANOM[k]=1;}}
+    const ur=ug*ratio,vr=vg*ratio;UR[k]=ur;VR[k]=vr;
+    const al=Math.atan(KFR[k]/f),ca=Math.cos(al),sa=Math.sin(al);
+    const ub=(ca*ur-sa*vr)*ca,vb=(sa*ur+ca*vr)*ca;UB[k]=ub;VB[k]=vb;US[k]=ub*S10[k];VS[k]=vb*S10[k];
+    TU[k]=ur*HS[k]/1000;TV[k]=vr*HS[k]/1000;}
+  // Ekman pumping: w = -H_bl * div(V_bl)
+  div(UB,VB,TMPA);for(let k=0;k<N;k++)TMPA[k]*=-1000;smooth(TMPA,WE,2);
+  // orographic lifting: w = 0.6 * V_bl · ∇h
+  for(let k=0;k<N;k++)TMPA[k]=0.6*(UB[k]*TERRX[k]+VB[k]*TERRY[k]);smooth(TMPA,WO,1);
+  velTexDirty=true;isoDirty=true;
+  updateDyn(drag?8:20);setModeArrays();computeTraj();
+}
+function curU(){return S.mode==='geo'?UG:S.mode==='grad'?UR:S.mode==='jet'?U3:US;}
+function curV(){return S.mode==='geo'?VG:S.mode==='grad'?VR:S.mode==='jet'?V3:VS;}
+function setModeArrays(){const U=curU(),V=curV();for(let k=0;k<N;k++){SPD[k]=Math.hypot(U[k],V[k]);PU[k]=U[k]*HS[k]/1000;PV[k]=V[k]*HS[k]/1000;}rasterDirty=true;}
+function inside(x,y){return x>=X0&&x<=X1&&y>=Y0&&y<=Y1;}
+function samp(A,x,y){let fi=(x-X0)/DX,fj=(Y1-y)/DX;if(fi<0)fi=0;else if(fi>NX-1.0001)fi=NX-1.0001;if(fj<0)fj=0;else if(fj>NY-1.0001)fj=NY-1.0001;
+  const i=fi|0,j=fj|0,a=fi-i,b=fj-j,k=j*NX+i;return A[k]*(1-a)*(1-b)+A[k+1]*a*(1-b)+A[k+NX]*(1-a)*b+A[k+NX+1]*a*b;}
+
+// ====================== air masses: temperature, humidity, clouds ======================
+const T=F32(),TEQ=F32(),QV=F32(),CW=F32(),ZL=F32(),DU=F32(),CV=F32(),PR=F32(),CF=F32(),RH=F32(),DSRC=new Uint8Array(N);
+const SRC=[T,QV,CW,ZL,DU,CV], DST=SRC.map(()=>F32());
+function esat(t){return 6.112*Math.exp(17.67*t/(t+243.5));}
+function qs850(t){const e=esat(t);return 622*e/(850-0.378*e);}
+function qs1000(t){const e=esat(t);return 622*e/(1000-0.378*e);}
+const GAMMA=4.5e-4; // d ln(qs)/dz for moist-adiabatic ascent [1/m]
+function buildTEQ(){for(let k=0;k<N;k++){const la=LAT[k],lo=LON[k];
+  let t=-3-(S.pfDT/2)*Math.tanh((la-S.pfLat)/6.5)-0.22*(la-50);
+  const dx=(lo-8)/18,dy=(la-25)/7;t+=5*Math.exp(-(dx*dx+dy*dy))*LAND[k];
+  t-=4*LANDS[k]*clamp((lo-15)/25,0,1);t+=1.5*(1-LANDS[k]);TEQ[k]=t;
+  DSRC[k]=(LAND[k]>0.5&&la<31.5&&la>17&&lo>-14&&lo<33&&MTN[k]<0.5)?1:0;}}
+buildTEQ();
+function resetTracers(spin){T.set(TEQ);for(let k=0;k<N;k++){QV[k]=0.6*qs850(TEQ[k]);CW[k]=0;ZL[k]=0;CV[k]=0;PR[k]=0;DU[k]=DSRC[k]?1:0;}
+  S.simT=0;S.acc=0;updateDyn(60);if(spin){for(let n=0;n<36;n++){tracerStep(3*3600);updateDyn(12);}S.simT=0;}diagClouds();rasterDirty=true;frontsDirty=true;isoTDirty=true;}
+
+const WX=new Float32Array(4),WY=new Float32Array(4),II=new Int32Array(4),JJ=new Int32Array(4);
+function cw(t,o){const t2=t*t,t3=t2*t;o[0]=(-t3+2*t2-t)/2;o[1]=(3*t3-5*t2+2)/2;o[2]=(-3*t3+4*t2+t)/2;o[3]=(t3-t2)/2;}
+function tracerStep(dt){
+  const nf=SRC.length;
+  // 1) semi-Lagrangian advection, monotone cubic
+  for(let j=0;j<NY;j++){const y=YS(j);for(let i=0;i<NX;i++){const k=j*NX+i,x=XS(i);
+    let u=TU[k],v=TV[k];const xm=x-0.5*u*dt,ym=y-0.5*v*dt;u=samp(TU,xm,ym);v=samp(TV,xm,ym);const xd=x-u*dt,yd=y-v*dt;
+    if(!inside(xd,yd)){DST[0][k]=TEQ[k];DST[1][k]=0.6*qs850(TEQ[k]);DST[2][k]=0;DST[3][k]=0;DST[4][k]=0;DST[5][k]=0;continue;}
+    const fi=(xd-X0)/DX,fj=(Y1-yd)/DX,i0=Math.floor(fi),j0=Math.floor(fj);cw(fi-i0,WX);cw(fj-j0,WY);
+    for(let m=0;m<4;m++){II[m]=clamp(i0-1+m,0,NX-1);JJ[m]=clamp(j0-1+m,0,NY-1)*NX;}
+    for(let f=0;f<nf;f++){const A=SRC[f];let s=0;
+      for(let b=0;b<4;b++){const r=JJ[b];s+=WY[b]*(WX[0]*A[r+II[0]]+WX[1]*A[r+II[1]]+WX[2]*A[r+II[2]]+WX[3]*A[r+II[3]]);}
+      const a=A[JJ[1]+II[1]],b2=A[JJ[1]+II[2]],c=A[JJ[2]+II[1]],d=A[JJ[2]+II[2]];
+      const mn=Math.min(a,b2,c,d),mx=Math.max(a,b2,c,d);DST[f][k]=s<mn?mn:s>mx?mx:s;}}}
+  // 2) physics
+  const eT=1-Math.exp(-dt/(6*86400)),eZ=Math.exp(-dt/(12*3600)),eC=1-Math.exp(-dt/3600),eE=1-Math.exp(-dt/7200),eP=1-Math.exp(-dt/(2*3600)),
+        eD=Math.exp(-dt/(4*86400)),eS=1-Math.exp(-dt/(12*3600)),eCVd=Math.exp(-dt/(5*3600)),eCVg=1-Math.exp(-dt/(2*3600)),eL=1-Math.exp(-dt/(6*86400));
+  const hrs=dt/3600;
+  for(let k=0;k<N;k++){let t=DST[0][k],q=DST[1][k],c=DST[2][k],z=DST[3][k],du=DST[4][k],cv=DST[5][k];
+    t+=(TEQ[k]-t)*eT;
+    z=clamp((z+WT[k]*dt)*eZ,-2500,4000);
+    let pr=0;
+    if(SEA[k]){const sst=SST[k],ts=t+7,spd=Math.hypot(UR[k],VR[k]);const dTs=sst-ts;
+      const rate=(1/(1.5*86400))*clamp(spd/8,0.4,2.5)*(1+Math.max(0,dTs)/4);
+      const qt=0.55*qs1000(sst);q+=(qt-q)*(1-Math.exp(-dt*rate*(qt>q?1:0.3)));
+      if(dTs>0)t+=dTs*(1-Math.exp(-dt*clamp(dTs/6,0,2)/(2*86400)));
+      // cold air over warm sea -> shallow convection (showers)
+      const inst=sst-t;const cvs=clamp((inst-12)/8,0,1)*clamp((q/qs850(t)-0.35)/0.4,0,1);
+      if(cvs>cv)cv+=(cvs-cv)*eCVg;else cv*=eCVd;
+    }else{q+=(0.5*qs850(t)-q)*eL;cv*=eCVd;}
+    // convective precipitation
+    if(cv>0.02){const dq=Math.min(q*0.5,cv*0.3*hrs*clamp(q/3,0,1));q-=dq;pr+=dq;}
+    // large-scale condensation
+    const qse=qs850(t)*Math.exp(-GAMMA*z);
+    if(q>qse){const d=(q-qse)*eC;q-=d;c+=d;}else if(c>0){const ev=Math.min(c,(qse-q)*eE);c-=ev;q+=ev;}
+    if(c>0.06){const d=(c-0.06)*eP;c-=d;pr+=d;}
+    du*=eD;if(DSRC[k])du+=(1-du)*eS;
+    T[k]=t;QV[k]=q;CW[k]=c;ZL[k]=z;DU[k]=du;CV[k]=cv;
+    const inst=pr*3/hrs;PR[k]=PR[k]*0.5+inst*0.5;}           // mm/h (column ≈ 3000 kg/m²)
+  S.simT+=dt;
+}
+function diagClouds(){for(let k=0;k<N;k++){const qse=qs850(T[k])*Math.exp(-GAMMA*ZL[k]);const rh=QV[k]/qse;RH[k]=rh;
+  const st=Math.pow(clamp(CW[k]/0.12,0,1),0.6),sd=rh>0.72?(1-Math.sqrt(Math.max(0,1-rh)/0.28))*0.85:0;CF[k]=Math.max(st,sd);}}
+
+// ====================== dynamics: thermal wind, Q-vectors, omega ======================
+const TSm=F32(),TX=F32(),TY=F32(),Q1=F32(),Q2=F32(),RHS=F32(),OM=F32(),CA=F32(),CD=F32();
+const SIGMA=2.0e-6, LDP=Math.PI/75000;
+for(let k=0;k<N;k++){CA[k]=SIGMA*HS[k]*HS[k]/(DM*DM);CD[k]=4*CA[k]+FC[k]*FC[k]*LDP*LDP;}
+const UX=F32(),UY=F32(),VXg=F32(),VYg=F32();
+function updateDyn(iters){
+  smooth(T,TSm,2);grad(TSm,TX,TY);
+  for(let k=0;k<N;k++){const c=RD/Math.max(FC[k],7.3e-5),ut=-c*TY[k],vt=c*TX[k];U7[k]=UG[k]+0.357*ut;V7[k]=VG[k]+0.357*vt;let a=UG[k]+1.204*ut,b=VG[k]+1.204*vt;const m=Math.hypot(a,b);if(m>95){a*=95/m;b*=95/m;}U3[k]=a;V3[k]=b;}
+  grad(U7,UX,UY);grad(V7,VXg,VYg);
+  const cq=-RD/70000;for(let k=0;k<N;k++){Q1[k]=cq*(UX[k]*TX[k]+VXg[k]*TY[k]);Q2[k]=cq*(UY[k]*TX[k]+VYg[k]*TY[k]);}
+  div(Q1,Q2,TMPA);smooth(TMPA,RHS,1);for(let j=0;j<NY;j++)for(let i=0;i<NX;i++){const e=Math.min(i,j,NX-1-i,NY-1-j);RHS[j*NX+i]*=-2*clamp((e-2)/6,0,1);}
+  for(let n=0;n<iters;n++)for(let c=0;c<2;c++)for(let j=1;j<NY-1;j++){for(let i=1+((j+c)&1);i<NX-1;i+=2){const k=j*NX+i;
+    const nw=(CA[k]*(OM[k-1]+OM[k+1]+OM[k-NX]+OM[k+NX])-RHS[k])/CD[k];OM[k]+=1.6*(nw-OM[k]);}}
+  for(let k=0;k<N;k++){WD[k]=-OM[k]/(0.85*9.81);WT[k]=clamp(WD[k]+WE[k]+WO[k],-0.3,0.3);}
+  if(S.mode==='jet')setModeArrays();
+  frontsDirty=true;isoTDirty=true;rasterDirty=true;
+}
+
+// ====================== trajectories ======================
+let TRAJ=null;
+function traceDir(x,y,sign){const pts=[[x,y]],dt=1800*sign;for(let n=0;n<144;n++){const u=samp(PU,x,y),v=samp(PV,x,y);const xm=x+0.5*u*dt,ym=y+0.5*v*dt;if(!inside(xm,ym))break;
+  const u2=samp(PU,xm,ym),v2=samp(PV,xm,ym);x+=u2*dt;y+=v2*dt;if(!inside(x,y))break;pts.push([x,y]);}return pts;}
+function computeTraj(){if(!S.probe){TRAJ=null;return;}TRAJ={f:traceDir(S.probe.x,S.probe.y,1),b:traceDir(S.probe.x,S.probe.y,-1)};}
+
+// ====================== canvas & view ======================
+const cv=document.getElementById('map'), ctx=cv.getContext('2d');
+const trail=document.createElement('canvas'), tctx=trail.getContext('2d');
+const off=document.createElement('canvas');off.width=NX;off.height=NY;const octx=off.getContext('2d');const img=octx.createImageData(NX,NY);
+let W=0,H=0,dpr=1,sc=1,ox=0,oy=0,landPath=null,gratPath=null;
+const sx=x=>ox+(x-X0)*sc, sy=y=>oy+(Y1-y)*sc, px2x=p=>(p-ox)/sc+X0, py2y=p=>Y1-(p-oy)/sc;
+function resize(){const r=cv.getBoundingClientRect();dpr=Math.min(2,window.devicePixelRatio||1);W=r.width;H=r.height;cv.width=Math.round(W*dpr);cv.height=Math.round(H*dpr);
+  trail.width=cv.width;trail.height=cv.height;
+  const cont=Math.min(W/(X1-X0),H/(Y1-Y0));sc=Math.min(Math.max(W/(X1-X0),H/(Y1-Y0)),cont*1.18);
+  ox=(W-(X1-X0)*sc)/2;oy=(H-(Y1-Y0)*sc)/2;
+  landPath=new Path2D();for(const r of LANDR.concat(LAKER)){landPath.moveTo(sx(r[0][0]),sy(r[0][1]));for(let i=1;i<r.length;i++)landPath.lineTo(sx(r[i][0]),sy(r[i][1]));landPath.closePath();}
+  gratPath=new Path2D();for(let lo=-60;lo<=80;lo+=10){let first=true;for(let la=10;la<=85;la+=1){const [x,y]=fwd(lo,la);if(first){gratPath.moveTo(sx(x),sy(y));first=false;}else gratPath.lineTo(sx(x),sy(y));}}
+  for(let la=20;la<=80;la+=10){let first=true;for(let lo=-70;lo<=90;lo+=1){const [x,y]=fwd(lo,la);if(first){gratPath.moveTo(sx(x),sy(y));first=false;}else gratPath.lineTo(sx(x),sy(y));}}
+  if(GLR)GLR.resize();initParticles();isoDirty=true;isoTDirty=true;frontsDirty=true;rasterDirty=true;}
+function clearTrails(){tctx.setTransform(1,0,0,1,0,0);tctx.clearRect(0,0,trail.width,trail.height);}
+
+// ====================== WebGL cloud renderer ======================
+const GLR=(function(){
+  const c=document.createElement('canvas');let gl=null;try{gl=c.getContext('webgl2',{alpha:false,antialias:false,preserveDrawingBuffer:true});}catch(e){}
+  if(!gl)return null;
+  const vs=`#version 300 es
+in vec2 p;out vec2 uv;void main(){uv=p*0.5+0.5;uv.y=1.0-uv.y;gl_Position=vec4(p,0.,1.);}`;
+  const fs=`#version 300 es
+precision highp float;in vec2 uv;out vec4 o;
+uniform sampler2D uF;uniform sampler2D uV;uniform sampler2D uN;uniform vec4 uDom;uniform vec2 uGrid;uniform float uT;uniform float uDX;
+float nz(vec2 q){return texture(uN,q).r;}
+void main(){
+  vec2 P=vec2(uDom.x+uv.x*uDom.z,uDom.y-uv.y*uDom.w);
+  vec2 tc=(vec2((P.x-uDom.x)/uDX,(uDom.y-P.y)/uDX)+0.5)/uGrid;
+  vec4 F=texture(uF,tc);vec2 V=texture(uV,tc).xy;
+  float Tp=8.0;float p1=fract(uT/Tp),p2=fract(uT/Tp+0.5);float w1=1.0-abs(2.0*p1-1.0);
+  vec2 a1=P-V*p1*Tp,a2=P-V*p2*Tp+vec2(311.,173.);
+  float n1=0.62*nz(a1/1100.)+0.38*nz(a1/210.+0.3),n2=0.62*nz(a2/1100.)+0.38*nz(a2/210.+0.3);
+  float n=n1*w1+n2*(1.0-w1);n=clamp((n-0.5)*2.4+0.5,0.,1.);
+  float cf=F.r;float a=smoothstep(1.0-cf-0.10,1.0-cf+0.22,n);
+  float m1=0.55*nz(a1/420.+0.7)+0.45*nz(a1/290.+0.23),m2=0.55*nz(a2/420.+0.1)+0.45*nz(a2/290.+0.61);float m=m1*w1+m2*(1.0-w1);m=clamp((m-0.5)*3.0+0.5,0.,1.);
+  float cc=F.g;float cells=smoothstep(1.0-0.6*cc-0.05,1.0-0.6*cc+0.07,m)*step(0.02,cc);
+  vec3 sea=vec3(0.05,0.10,0.18),land=vec3(0.13,0.17,0.12),mt=vec3(0.34,0.32,0.27);
+  vec3 base=mix(sea,mix(land,mt,F.a*0.8),F.b);
+  float sh=0.80+0.20*smoothstep(0.0,0.6,n-(1.0-cf));
+  vec3 cloud=vec3(sh,sh,sh*1.01);
+  float A=max(a*0.97,cells*0.92);
+  o=vec4(mix(base,cloud,A),1.0);
+}`;
+  function sh(t,s){const x=gl.createShader(t);gl.shaderSource(x,s);gl.compileShader(x);if(!gl.getShaderParameter(x,gl.COMPILE_STATUS)){console.warn(gl.getShaderInfoLog(x));return null;}return x;}
+  const pr=gl.createProgram();const v=sh(gl.VERTEX_SHADER,vs),f=sh(gl.FRAGMENT_SHADER,fs);if(!v||!f)return null;gl.attachShader(pr,v);gl.attachShader(pr,f);gl.linkProgram(pr);
+  if(!gl.getProgramParameter(pr,gl.LINK_STATUS))return null;gl.useProgram(pr);
+  const buf=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,buf);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,3,-1,-1,3]),gl.STATIC_DRAW);
+  const loc=gl.getAttribLocation(pr,'p');gl.enableVertexAttribArray(loc);gl.vertexAttribPointer(loc,2,gl.FLOAT,false,0,0);
+  function tex(unit,filter,wrap){const t=gl.createTexture();gl.activeTexture(gl.TEXTURE0+unit);gl.bindTexture(gl.TEXTURE_2D,t);
+    gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,filter);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,filter);
+    gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,wrap);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,wrap);return t;}
+  const tF=tex(0,gl.LINEAR,gl.CLAMP_TO_EDGE),tV=tex(1,gl.LINEAR,gl.CLAMP_TO_EDGE),tN=tex(2,gl.LINEAR,gl.REPEAT);
+  // tileable fBm value noise 256²
+  const NS=256,nd=new Uint8Array(NS*NS),acc=new Float32Array(NS*NS);let amp=1,tot=0;
+  for(const per of [4,8,16,32,64]){const g=new Float32Array(per*per);for(let i=0;i<g.length;i++)g[i]=Math.random();const cell=NS/per;
+    for(let y=0;y<NS;y++)for(let x=0;x<NS;x++){const gx=x/cell,gy=y/cell,ix=Math.floor(gx),iy=Math.floor(gy);let fx=gx-ix,fy=gy-iy;fx=fx*fx*(3-2*fx);fy=fy*fy*(3-2*fy);
+      const a=g[(iy%per)*per+ix%per],b=g[(iy%per)*per+(ix+1)%per],c2=g[((iy+1)%per)*per+ix%per],d=g[((iy+1)%per)*per+(ix+1)%per];
+      acc[y*NS+x]+=amp*((a*(1-fx)+b*fx)*(1-fy)+(c2*(1-fx)+d*fx)*fy);}tot+=amp;amp*=0.55;}
+  for(let i=0;i<acc.length;i++)nd[i]=Math.round(255*acc[i]/tot);
+  gl.activeTexture(gl.TEXTURE2);gl.pixelStorei(gl.UNPACK_ALIGNMENT,1);gl.texImage2D(gl.TEXTURE_2D,0,gl.R8,NS,NS,0,gl.RED,gl.UNSIGNED_BYTE,nd);
+  const U=n=>gl.getUniformLocation(pr,n);gl.uniform1i(U('uF'),0);gl.uniform1i(U('uV'),1);gl.uniform1i(U('uN'),2);
+  gl.uniform4f(U('uDom'),X0,Y1,X1-X0,Y1-Y0);gl.uniform2f(U('uGrid'),NX,NY);gl.uniform1f(U('uDX'),DX);const uT=U('uT');
+  const fdata=new Uint8Array(N*4),vdata=new Float32Array(N*2);
+  return {canvas:c,
+    resize(){const s=Math.min(dpr,1.25);c.width=Math.max(2,Math.round((X1-X0)*sc*s));c.height=Math.max(2,Math.round((Y1-Y0)*sc*s));gl.viewport(0,0,c.width,c.height);},
+    uploadF(){for(let k=0;k<N;k++){fdata[k*4]=CF[k]*255;fdata[k*4+1]=CV[k]*255;fdata[k*4+2]=LAND[k]*255;fdata[k*4+3]=MTN[k]*255;}
+      gl.activeTexture(gl.TEXTURE0);gl.bindTexture(gl.TEXTURE_2D,tF);gl.pixelStorei(gl.UNPACK_ALIGNMENT,1);gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA8,NX,NY,0,gl.RGBA,gl.UNSIGNED_BYTE,fdata);},
+    uploadV(){for(let k=0;k<N;k++){vdata[k*2]=TU[k]*3600;vdata[k*2+1]=TV[k]*3600;}
+      gl.activeTexture(gl.TEXTURE1);gl.bindTexture(gl.TEXTURE_2D,tV);gl.texImage2D(gl.TEXTURE_2D,0,gl.RG16F,NX,NY,0,gl.RG,gl.FLOAT,vdata);},
+    render(th){gl.uniform1f(uT,th%4096);gl.drawArrays(gl.TRIANGLES,0,3);}};
+})();
+
+// ====================== colour maps & legend ======================
+function hex(h){return [parseInt(h.slice(1,3),16),parseInt(h.slice(3,5),16),parseInt(h.slice(5,7),16)];}
+function mkMap(stops){const s=stops.map(([v,c])=>[v,hex(c)]);const lo=s[0][0],hi=s[s.length-1][0];const lut=new Uint8Array(256*3);
+  for(let n=0;n<256;n++){const v=lo+(hi-lo)*n/255;let a=0;while(a<s.length-2&&v>s[a+1][0])a++;const t=clamp((v-s[a][0])/(s[a+1][0]-s[a][0]),0,1);
+    for(let c=0;c<3;c++)lut[n*3+c]=Math.round(s[a][1][c]+(s[a+1][1][c]-s[a][1][c])*t);}return {lo,hi,lut};}
+const CM={
+ speed:mkMap([[0,'#1a2550'],[3,'#21488a'],[6,'#1d7f99'],[9,'#2a9a6a'],[12,'#86b83e'],[15,'#dcc233'],[19,'#e5862a'],[24,'#cf3d2e'],[30,'#9c2259'],[45,'#5e1a66']]),
+ jet:mkMap([[0,'#1a2550'],[10,'#21488a'],[20,'#1d7f99'],[30,'#2a9a6a'],[40,'#86b83e'],[50,'#dcc233'],[60,'#e5862a'],[75,'#cf3d2e'],[90,'#9c2259']]),
+ pres:mkMap([[960,'#3a1d6b'],[985,'#2a56a0'],[1003,'#4b9fc4'],[1013,'#c9d3d1'],[1023,'#e3b257'],[1036,'#d4652c'],[1050,'#982820']]),
+ temp:mkMap([[-28,'#2a1964'],[-18,'#2e5cb0'],[-9,'#5fa6d6'],[-3,'#a9d7ea'],[0,'#e9efd8'],[4,'#f2c56c'],[10,'#e57a35'],[18,'#b9282b'],[24,'#7a1426']]),
+ dust:mkMap([[0,'#16233a'],[0.08,'#2a3346'],[0.3,'#7a6038'],[0.6,'#c38d3a'],[1,'#f3cd78']]),
+ rough:mkMap([[0,'#123a63'],[0.25,'#4f7146'],[0.45,'#7c8a52'],[0.7,'#b6a679'],[1,'#ece6d6']]),
+ vvel:mkMap([[-6,'#a3541c'],[-3,'#6a3d22'],[-0.7,'#1b2233'],[0.7,'#1b2233'],[3,'#2a5f9e'],[6,'#4fb0ff'],[10,'#c8ecff']]),
+ rh:mkMap([[0,'#5a3a1a'],[0.35,'#8b6a35'],[0.6,'#4f7c55'],[0.8,'#2f7fa6'],[1,'#7fd0ff']]),
+ rain:mkMap([[0,'#1f6fd0'],[0.5,'#27b25a'],[1.5,'#e8d23a'],[3,'#ea7a2a'],[6,'#d8352f']]),
+ snow:mkMap([[0,'#7f7fd6'],[0.5,'#b58ae6'],[1.5,'#e4c8ff'],[3,'#ffffff']]),
+ cloud:mkMap([[0,'#0d1a2e'],[1,'#f2f4f8']])
+};
+const LEG={speed:['Rychlost větru [m/s]',[0,5,10,15,20,30,45],'speed'],pres:['Tlak [hPa]',[960,980,1000,1013,1030,1050],'pres'],temp:['Teplota ve 850 hPa [°C]',[-28,-18,-9,0,10,24],'temp'],
+  dust:['Koncentrace prachu (relativní)',[0,0.25,0.5,0.75,1],'dust'],rough:['Drsnost povrchu: moře → nížina → hory',[0,0.5,1],'rough'],
+  vvel:['Vertikální pohyb [cm/s]: sestup ← → výstup',[-6,-3,0,3,6,10],'vvel'],rh:['Relativní vlhkost (vůči nasycení po výstupu)',['0 %','35 %','60 %','80 %','100 %'],'rh'],
+  precip:['Srážky [mm/h] – déšť',[0,0.5,1.5,3,6],'rain'],cloud:['Simulovaný družicový snímek',['jasno','','','','zataženo'],'cloud']};
+function updateLegend(){const L=S.layer;let [t,ticks,cm]=LEG[L];if(L==='speed'&&S.mode==='jet'){cm='jet';ticks=[0,20,40,60,90];}const m=CM[cm];
+  const c=document.getElementById('legBar'),g=c.getContext('2d');for(let x=0;x<290;x++){const n=Math.round(x/289*255);g.fillStyle=`rgb(${m.lut[n*3]},${m.lut[n*3+1]},${m.lut[n*3+2]})`;g.fillRect(x,0,1,10);}
+  document.getElementById('legTitle').textContent=t;document.getElementById('legTicks').innerHTML=ticks.map(v=>`<span>${v}</span>`).join('');
+  let x='';if(L==='precip')x='Sníh (T₈₅₀ < −2 °C) je vykreslen fialově.';else if(L==='vvel')x={tot:'Součet všech tří příčin.',dyn:'Jen dynamický výstup z Q-vektorů (fronty, teplá advekce).',ek:'Jen sbíhavost/rozbíhavost v mezní vrstvě (tření).',oro:'Jen výstup/sestup na horách.'}[S.wcomp];
+  else if(L==='cloud')x=(GLR&&!glSlow)?'Vrstevnatá oblačnost z výstupu + přeháňkové buňky nad teplým mořem.':'Zjednodušené vykreslení (WebGL je v tomto prohlížeči nedostupné nebo pomalé).';else if(L==='speed'&&S.mode!=='geo'&&S.mode!=='jet')x='▪ fialové tečky: gradientový vítr nemá řešení (příliš ostrá výše)';
+  document.getElementById('legX').textContent=x;document.getElementById('legX').style.color=x.startsWith('▪')?'var(--warn)':'';}
+function updateRaster(){const L=S.layer,d=img.data;
+  if(L==='cloud'){if(GLR&&!glSlow){GLR.uploadF();rasterDirty=false;return;}for(let k=0;k<N;k++){const l=LAND[k],a=clamp(Math.max(CF[k]*0.95,CV[k]*0.55),0,1);const R=13+20*l,G=26+18*l,B=46-16*l;d[k*4]=R+(236-R)*a;d[k*4+1]=G+(240-G)*a;d[k*4+2]=B+(245-B)*a;d[k*4+3]=255;}}
+  else if(L==='precip'){const r=CM.rain,s=CM.snow;for(let k=0;k<N;k++){const l=LAND[k];let R=13+20*l,G=26+20*l,B=46-16*l;const p=PR[k];
+      if(p>0.03){const m=T[k]<-2?s:r;const n=clamp((p-m.lo)/(m.hi-m.lo)*255,0,255)|0;const a=clamp(p/0.25,0.25,1);R=R*(1-a)+m.lut[n*3]*a;G=G*(1-a)+m.lut[n*3+1]*a;B=B*(1-a)+m.lut[n*3+2]*a;}
+      d[k*4]=R;d[k*4+1]=G;d[k*4+2]=B;d[k*4+3]=255;}}
+  else{let A,cm=L,scl=1;
+    if(L==='speed'){A=SPD;if(S.mode==='jet')cm='jet';}else if(L==='temp')A=T;else if(L==='dust')A=DU;else if(L==='rough')A=ROUGH;else if(L==='pres'){A=P;scl=0.01;}else if(L==='rh')A=RH;
+    else if(L==='vvel'){A=S.wcomp==='dyn'?WD:S.wcomp==='ek'?WE:S.wcomp==='oro'?WO:WT;scl=100;}
+    const m=CM[cm],lo=m.lo,k255=255/(m.hi-m.lo),lut=m.lut;
+    for(let k=0;k<N;k++){let n=((A[k]*scl-lo)*k255)|0;if(n<0)n=0;else if(n>255)n=255;d[k*4]=lut[n*3];d[k*4+1]=lut[n*3+1];d[k*4+2]=lut[n*3+2];d[k*4+3]=255;}}
+  octx.putImageData(img,0,0);rasterDirty=false;}
+
+// ====================== contours ======================
+function contour(F,step,base,cb){ // marching squares; cb(L,ax,ay,bx,by)
+  for(let j=0;j<NY-1;j++){const y=YS(j);for(let i=0;i<NX-1;i++){const x=XS(i),k=j*NX+i;const v0=F[k],v1=F[k+1],v2=F[k+NX+1],v3=F[k+NX];
+    const mn=Math.min(v0,v1,v2,v3),mx=Math.max(v0,v1,v2,v3);let L=step?Math.ceil((mn-base)/step)*step+base:base;
+    for(;L<=mx;L+=step||Infinity){if(L<mn)continue;
+      const b0=v0>L,b1=v1>L,b2=v2>L,b3=v3>L;const code=(b0?8:0)|(b1?4:0)|(b2?2:0)|(b3?1:0);if(code===0||code===15)continue;
+      const E={};if(b0!==b1){const t=(L-v0)/(v1-v0);E.t=[x+t*DX,y];}if(b1!==b2){const t=(L-v1)/(v2-v1);E.r=[x+DX,y-t*DX];}
+      if(b3!==b2){const t=(L-v3)/(v2-v3);E.b=[x+t*DX,y-DX];}if(b0!==b3){const t=(L-v0)/(v3-v0);E.l=[x,y-t*DX];}
+      let pairs;if(code===5||code===10){const c=(v0+v1+v2+v3)/4>L;
+        if(code===10)pairs=c?[['t','r'],['b','l']]:[['l','t'],['r','b']];else pairs=c?[['l','t'],['r','b']]:[['t','r'],['b','l']];}
+      else{const ks=Object.keys(E);pairs=[[ks[0],ks[1]]];}
+      for(const [a,b] of pairs){const A=E[a],B=E[b];cb(L,A[0],A[1],B[0],B[1]);}}}}}
+function placeLabels(segs,minAll,minSame,cap){const out=[];const step=Math.max(1,Math.floor(segs.length/2500));
+  for(let n=0;n<segs.length;n+=step){const [L,x,y]=segs[(n*7919)%segs.length];const X=sx(x),Y=sy(y);if(X<30||Y<30||X>W-30||Y>H-30)continue;
+    let ok=true;for(const q of out){const d=(q.X-X)**2+(q.Y-Y)**2;if(d<minAll*minAll||(q.L===L&&d<minSame*minSame)){ok=false;break;}}if(ok)out.push({L,X,Y});if(out.length>cap)break;}return out;}
+let isoPath=null,isoBold=null,isoLabels=[],isoTPath=null,isoT0=null,isoTLabels=[];
+const PH=F32();
+function buildIso(){isoPath=new Path2D();isoBold=new Path2D();const segs=[];for(let k=0;k<N;k++)PH[k]=P[k]/100;
+  contour(PH,5,0,(L,ax,ay,bx,by)=>{const p=(L%20===0)?isoBold:isoPath;p.moveTo(sx(ax),sy(ay));p.lineTo(sx(bx),sy(by));segs.push([L,(ax+bx)/2,(ay+by)/2]);});
+  isoLabels=placeLabels(segs,90,300,70);isoDirty=false;}
+function buildIsoT(){isoTPath=new Path2D();isoT0=new Path2D();const segs=[];
+  contour(TSm,4,0,(L,ax,ay,bx,by)=>{const p=L===0?isoT0:isoTPath;p.moveTo(sx(ax),sy(ay));p.lineTo(sx(bx),sy(by));segs.push([L,(ax+bx)/2,(ay+by)/2]);});
+  isoTLabels=placeLabels(segs,80,320,50);isoTDirty=false;}
+
+// ====================== fronts ======================
+const GT=F32(),MF=F32(),MN=F32(),GTX=F32(),GTY=F32(),NTX=F32(),NTY=F32(),ADV=F32(),FG=F32(),URX=F32(),URY=F32(),VRX=F32(),VRY=F32();
+let FRONTS=[];
+const FRONT_THR=1.4e-5; // K/m  (1.4 K / 100 km)
+function buildFronts(){
+  for(let k=0;k<N;k++){const g=Math.hypot(TX[k],TY[k]);GT[k]=g;NTX[k]=g>1e-9?TX[k]/g:0;NTY[k]=g>1e-9?TY[k]/g:0;ADV[k]=-(UR[k]*TX[k]+VR[k]*TY[k])*86400;}
+  grad(UR,URX,URY);grad(VR,VRX,VRY);
+  for(let k=0;k<N;k++){const tx=TX[k],ty=TY[k];FG[k]=GT[k]>1e-9?-(tx*tx*URX[k]+tx*ty*(VRX[k]+URY[k])+ty*ty*VRY[k])/GT[k]*86400*1e5:0;} // K/100km/day
+  grad(GT,GTX,GTY);for(let k=0;k<N;k++)MF[k]=GTX[k]*NTX[k]+GTY[k]*NTY[k];
+  grad(MF,GTX,GTY);for(let k=0;k<N;k++)MN[k]=GTX[k]*NTX[k]+GTY[k]*NTY[k];
+  const segs=[];contour(MF,0,0,(L,ax,ay,bx,by)=>{const mx=(ax+bx)/2,my=(ay+by)/2;const ei=(mx-X0)/DX,ej=(Y1-my)/DX;if(ei<5||ej<5||ei>NX-6||ej>NY-6)return;if(samp(GT,mx,my)>FRONT_THR&&samp(MN,mx,my)<0&&samp(FG,mx,my)>0.6)segs.push([ax,ay,bx,by]);});
+  // join into polylines
+  const key=(x,y)=>Math.round(x*4)+','+Math.round(y*4);const mp=new Map();
+  segs.forEach((s,i)=>{for(const e of [0,1]){const kk=key(s[e*2],s[e*2+1]);if(!mp.has(kk))mp.set(kk,[]);mp.get(kk).push(i);}});
+  const used=new Uint8Array(segs.length);const lines=[];
+  for(let i=0;i<segs.length;i++){if(used[i])continue;used[i]=1;let pts=[[segs[i][0],segs[i][1]],[segs[i][2],segs[i][3]]];
+    for(const dir of [1,0]){while(true){const end=dir?pts[pts.length-1]:pts[0];const cand=(mp.get(key(end[0],end[1]))||[]).find(n=>!used[n]);if(cand===undefined)break;used[cand]=1;
+      const s=segs[cand];const a=[s[0],s[1]],b=[s[2],s[3]];const nxt=key(a[0],a[1])===key(end[0],end[1])?b:a;if(dir)pts.push(nxt);else pts.unshift(nxt);}}
+    let len=0;for(let n=1;n<pts.length;n++)len+=Math.hypot(pts[n][0]-pts[n-1][0],pts[n][1]-pts[n-1][1]);if(len<450)continue;
+    // Chaikin smoothing
+    for(let it=0;it<2;it++){const q=[pts[0]];for(let n=0;n<pts.length-1;n++){const a=pts[n],b=pts[n+1];q.push([0.75*a[0]+0.25*b[0],0.75*a[1]+0.25*b[1]],[0.25*a[0]+0.75*b[0],0.25*a[1]+0.75*b[1]]);}q.push(pts[pts.length-1]);pts=q;}
+    lines.push(pts);}
+  FRONTS=lines;frontsDirty=false;}
+function frontType(x,y){const a=samp(ADV,x,y);return a>1.2?'w':a<-1.2?'c':'s';}
+function drawFronts(){
+  for(const pts of FRONTS){const sp=pts.map(p=>[sx(p[0]),sy(p[1])]);
+    // segment colouring by type
+    let acc=0,nextSym=14,symIdx=0;
+    for(let n=1;n<sp.length;n++){const p0=pts[n-1],p1=pts[n];const mx=(p0[0]+p1[0])/2,my=(p0[1]+p1[1])/2;const ty=frontType(mx,my);
+      const col=ty==='w'?'#ff4040':ty==='c'?'#3a7bff':(symIdx%2?'#ff4040':'#3a7bff');
+      ctx.lineCap='round';ctx.lineWidth=5;ctx.strokeStyle='rgba(7,11,20,0.55)';ctx.beginPath();ctx.moveTo(sp[n-1][0],sp[n-1][1]);ctx.lineTo(sp[n][0],sp[n][1]);ctx.stroke();
+      ctx.lineWidth=2.6;ctx.strokeStyle=col;ctx.stroke();
+      const dl=Math.hypot(sp[n][0]-sp[n-1][0],sp[n][1]-sp[n-1][1]);acc+=dl;
+      if(acc>=nextSym){nextSym+=30;symIdx++;
+        const tx=(sp[n][0]-sp[n-1][0])/(dl||1),ty2=(sp[n][1]-sp[n-1][1])/(dl||1);
+        let wx=samp(NTX,mx,my),wy=-samp(NTY,mx,my);const dot=wx*(-ty2)+wy*tx;let nx=-ty2,ny=tx;if(dot<0){nx=-nx;ny=-ny;} // n -> warm side
+        const X=(sp[n][0]+sp[n-1][0])/2,Y=(sp[n][1]+sp[n-1][1])/2;
+        const kind=ty==='s'?(symIdx%2?'w':'c'):ty;
+        if(kind==='c'){ctx.fillStyle='#3a7bff';ctx.beginPath();ctx.moveTo(X-tx*6,Y-ty2*6);ctx.lineTo(X+tx*6,Y+ty2*6);ctx.lineTo(X+nx*8,Y+ny*8);ctx.closePath();ctx.fill();}
+        else{ctx.fillStyle='#ff4040';const a0=Math.atan2(-ny,-nx);ctx.beginPath();ctx.arc(X,Y,6,a0-Math.PI/2,a0+Math.PI/2);ctx.closePath();ctx.fill();}}}}}
+
+// ====================== particles ======================
+let parts=[];
+function initParticles(){const area=(X1-X0)*(Y1-Y0)*sc*sc;const n=Math.min(8000,Math.round(area/170));parts=new Array(n);for(let i=0;i<n;i++)parts[i]=spawn({},true);clearTrails();}
+function spawn(p,rnd){p.x=X0+Math.random()*(X1-X0);p.y=Y0+Math.random()*(Y1-Y0);p.age=rnd?Math.random()*120|0:0;p.max=60+Math.random()*120|0;return p;}
+function stepParticles(fr){
+  tctx.setTransform(1,0,0,1,0,0);tctx.globalCompositeOperation='destination-in';tctx.fillStyle=`rgba(0,0,0,${Math.pow(0.92,fr)})`;tctx.fillRect(0,0,trail.width,trail.height);
+  tctx.globalCompositeOperation='source-over';if(!S.part)return;
+  tctx.setTransform(dpr,0,0,dpr,0,0);tctx.lineWidth=1.1;tctx.strokeStyle=S.layer==='cloud'?'rgba(255,224,150,0.55)':'rgba(255,255,255,0.82)';tctx.beginPath();
+  const Tp=(S.mode==='jet'?40:120)/sc*fr;
+  for(const p of parts){if(++p.age>p.max){spawn(p,false);continue;}const u=samp(PU,p.x,p.y),v=samp(PV,p.x,p.y);let dx=u*Tp,dy=v*Tp;const L=Math.hypot(dx,dy)*sc;if(L>7){dx*=7/L;dy*=7/L;}
+    const x2=p.x+dx,y2=p.y+dy;if(!inside(x2,y2)){spawn(p,false);continue;}
+    if(L>0.05){tctx.moveTo(sx(p.x),sy(p.y));tctx.lineTo(sx(x2),sy(y2));}p.x=x2;p.y=y2;}
+  tctx.stroke();}
+
+// ====================== drawing ======================
+const DIRS=['S','SSV','SV','VSV','V','VJV','JV','JJV','J','JJZ','JZ','ZJZ','Z','ZSZ','SZ','SSZ'];
+function northAngle(lon,lat){const [a,b]=fwd(lon,lat),[c,d]=fwd(lon,lat+0.05);return Math.atan2(d-b,c-a);}
+function windFrom(u,v,lon,lat){const th=northAngle(lon,lat),ph=Math.atan2(v,u);const to=(th-ph)/D2R;const fr=((to+180)%360+360)%360;return [fr,DIRS[Math.round(fr/22.5)%16]];}
+function drawArrow(g,x,y,dx,dy,head){const L=Math.hypot(dx,dy);if(L<1)return;g.beginPath();g.moveTo(x,y);g.lineTo(x+dx,y+dy);const a=Math.atan2(dy,dx),h=Math.min(head,L*0.45);
+  g.moveTo(x+dx,y+dy);g.lineTo(x+dx-h*Math.cos(a-0.45),y+dy-h*Math.sin(a-0.45));g.moveTo(x+dx,y+dy);g.lineTo(x+dx-h*Math.cos(a+0.45),y+dy-h*Math.sin(a+0.45));g.stroke();}
+function labelText(t,X,Y,col){ctx.lineWidth=3;ctx.strokeStyle='rgba(7,11,20,0.75)';ctx.strokeText(t,X,Y);ctx.fillStyle=col;ctx.fillText(t,X,Y);}
+let hoverId=null,hoverXY=null,glSlow=false,glN=0,glEma=0;
+function draw(simHours){
+  ctx.setTransform(dpr,0,0,dpr,0,0);ctx.fillStyle='#070b14';ctx.fillRect(0,0,W,H);
+  ctx.save();ctx.beginPath();ctx.rect(sx(X0),sy(Y1),(X1-X0)*sc,(Y1-Y0)*sc);ctx.clip();
+  if(rasterDirty)updateRaster();
+  const cloudGL=S.layer==='cloud'&&GLR&&!glSlow;
+  if(cloudGL){const t0=performance.now();GLR.render(simHours);ctx.drawImage(GLR.canvas,sx(X0),sy(Y1),(X1-X0)*sc,(Y1-Y0)*sc);const dt=performance.now()-t0;
+    glN++;glEma=glN<3?dt:glEma*0.9+dt*0.1;if(glN>25&&glEma>28){glSlow=true;rasterDirty=true;updateLegend();console.info('WebGL render slow ('+glEma.toFixed(0)+' ms) – switching to simple cloud rendering');}}
+  else{ctx.imageSmoothingEnabled=true;ctx.drawImage(off,sx(X0-DX/2),sy(Y1+DX/2),NX*DX*sc,NY*DX*sc);}
+  if(!cloudGL&&S.layer!=='precip'){ctx.fillStyle='rgba(0,0,0,0.2)';ctx.fill(landPath,'evenodd');}
+  ctx.strokeStyle='rgba(255,255,255,0.08)';ctx.lineWidth=1;ctx.stroke(gratPath);
+  ctx.strokeStyle=cloudGL?'rgba(235,242,255,0.4)':'rgba(235,242,255,0.72)';ctx.lineWidth=1;ctx.stroke(landPath);
+  if(S.layer==='speed'&&S.mode!=='geo'&&S.mode!=='jet'){ctx.fillStyle='rgba(232,121,249,0.85)';for(let j=0;j<NY;j+=2)for(let i=(j/2)%2;i<NX;i+=2){if(ANOM[j*NX+i])ctx.fillRect(sx(XS(i))-1.2,sy(YS(j))-1.2,2.4,2.4);}}
+  ctx.drawImage(trail,0,0,W,H);
+  if(S.vec){ctx.strokeStyle='rgba(255,255,255,0.9)';ctx.lineWidth=1.2;const st=42,U=curU(),V=curV();for(let Y=sy(Y1)+st/2;Y<sy(Y0);Y+=st)for(let X=sx(X0)+st/2;X<sx(X1);X+=st){const x=px2x(X),y=py2y(Y);
+      const u=samp(U,x,y),v=samp(V,x,y),s=Math.hypot(u,v);if(s<0.3)continue;const L=Math.min(st*0.9,6+s*(S.mode==='jet'?0.6:1.6));drawArrow(ctx,X-u/s*L/2,Y+v/s*L/2,u/s*L,-v/s*L,5);}}
+  if(S.qv){ctx.strokeStyle='#ffd166';ctx.lineWidth=1.4;const st=46;for(let Y=sy(Y1)+st/2;Y<sy(Y0);Y+=st)for(let X=sx(X0)+st/2;X<sx(X1);X+=st){const x=px2x(X),y=py2y(Y);
+      const a=samp(Q1,x,y),b=samp(Q2,x,y),m=Math.hypot(a,b);if(m<2e-14)continue;const L=clamp(6*Math.log10(m/2e-14)+4,4,st*0.9);drawArrow(ctx,X-a/m*L/2,Y+b/m*L/2,a/m*L,-b/m*L,5);}}
+  if(S.isoT){if(isoTDirty)buildIsoT();ctx.setLineDash([5,4]);ctx.strokeStyle='rgba(255,178,102,0.75)';ctx.lineWidth=1.1;ctx.stroke(isoTPath);ctx.strokeStyle='rgba(255,236,170,0.95)';ctx.lineWidth=1.8;ctx.stroke(isoT0);ctx.setLineDash([]);
+    ctx.font='500 10.5px IBM Plex Mono, monospace';ctx.textAlign='center';ctx.textBaseline='middle';for(const l of isoTLabels)labelText((l.L>0?'+':l.L<0?'−':'')+Math.abs(l.L)+'°',l.X,l.Y,'#ffcf99');}
+  if(S.iso){if(isoDirty)buildIso();ctx.strokeStyle='rgba(255,255,255,0.62)';ctx.lineWidth=1;ctx.stroke(isoPath);ctx.lineWidth=1.8;ctx.strokeStyle='rgba(255,255,255,0.8)';ctx.stroke(isoBold);
+    ctx.font='500 10.5px IBM Plex Mono, monospace';ctx.textAlign='center';ctx.textBaseline='middle';for(const l of isoLabels)labelText(String(l.L),l.X,l.Y,'#fff');}
+  if(S.front){if(frontsDirty)buildFronts();drawFronts();}
+  if(TRAJ){for(const [arr,col] of [[TRAJ.b,'#7ee0ff'],[TRAJ.f,'#ffb26b']]){if(arr.length<2)continue;ctx.lineWidth=2.4;ctx.strokeStyle='rgba(7,11,20,0.6)';ctx.beginPath();arr.forEach((p,i)=>i?ctx.lineTo(sx(p[0]),sy(p[1])):ctx.moveTo(sx(p[0]),sy(p[1])));ctx.stroke();
+      ctx.lineWidth=2;ctx.strokeStyle=col;ctx.stroke();ctx.fillStyle=col;for(let n=48;n<arr.length;n+=48){ctx.beginPath();ctx.arc(sx(arr[n][0]),sy(arr[n][1]),3.4,0,7);ctx.fill();}
+      const e=arr[arr.length-1];if(arr===TRAJ.f&&arr.length>3){const a=arr[arr.length-3];ctx.strokeStyle=col;drawArrow(ctx,sx(a[0]),sy(a[1]),sx(e[0])-sx(a[0]),sy(e[1])-sy(a[1]),9);}}
+    const X=sx(S.probe.x),Y=sy(S.probe.y);ctx.strokeStyle='#fff';ctx.lineWidth=1.6;ctx.beginPath();ctx.arc(X,Y,7,0,7);ctx.stroke();ctx.beginPath();ctx.moveTo(X-12,Y);ctx.lineTo(X-4,Y);ctx.moveTo(X+4,Y);ctx.lineTo(X+12,Y);ctx.moveTo(X,Y-12);ctx.lineTo(X,Y-4);ctx.moveTo(X,Y+4);ctx.lineTo(X,Y+12);ctx.stroke();}
+  if(S.mark)for(const s of S.systems){const X=sx(s.x),Y=sy(s.y);const sel=S.sel===s.id;
+    if(sel||hoverId===s.id){const q=sysParams(s);ctx.save();ctx.translate(X,Y);ctx.rotate(-s.rot*D2R);ctx.setLineDash([5,4]);ctx.lineWidth=sel?1.6:1;ctx.strokeStyle=sel?'#fff':'rgba(255,255,255,0.6)';ctx.beginPath();ctx.ellipse(0,0,q.a*sc,q.b*sc,0,0,7);ctx.stroke();ctx.restore();ctx.setLineDash([]);}
+    ctx.beginPath();ctx.arc(X,Y,13,0,7);ctx.fillStyle='rgba(255,255,255,0.93)';ctx.fill();ctx.lineWidth=sel?3:1.5;ctx.strokeStyle=s.type>0?'#2f6fe0':'#e03b3b';ctx.stroke();
+    ctx.fillStyle=s.type>0?'#1d55c2':'#d12f2f';ctx.font='700 15px IBM Plex Sans, sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(s.type>0?'V':'N',X,Y+0.5);
+    ctx.font='500 10.5px IBM Plex Mono, monospace';labelText(String(Math.round(samp(P,s.x,s.y)/100)),X,Y+22,'#fff');}
+  if(hoverXY&&S.add){ctx.globalAlpha=0.6;ctx.beginPath();ctx.arc(hoverXY[0],hoverXY[1],13,0,7);ctx.fillStyle='#fff';ctx.fill();ctx.fillStyle=S.add>0?'#1d55c2':'#d12f2f';ctx.font='700 15px IBM Plex Sans';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(S.add>0?'V':'N',hoverXY[0],hoverXY[1]);ctx.globalAlpha=1;}
+  if(hoverXY&&S.brush){ctx.strokeStyle={cold:'#7ec8ff',warm:'#ffb36b',moist:'#7fffd4',dry:'#d9b38c'}[S.brush];ctx.lineWidth=1.5;ctx.setLineDash([4,4]);ctx.beginPath();ctx.arc(hoverXY[0],hoverXY[1],BRUSH_R*sc,0,7);ctx.stroke();ctx.setLineDash([]);}
+  ctx.restore();
+}
+
+// ====================== probe ======================
+const fcv=document.getElementById('forces'),fctx=fcv.getContext('2d');
+function f1(v,d=1){return (Math.round(v*10**d)/10**d).toFixed(d);}
+const sgn=v=>(v>0?'+':v<0?'−':'')+Math.abs(v);
+function updateProbe(){const box=document.getElementById('probebox');if(!S.probe){box.hidden=true;return;}box.hidden=false;
+  const {x,y}=S.probe;const [lon,lat]=inv(x,y);const f=samp(FC,x,y),gx=samp(GX,x,y),gy=samp(GY,x,y),G=Math.hypot(gx,gy),kap=samp(KAP,x,y),kf=samp(KFR,x,y),land=samp(LAND,x,y),mt=samp(MTN,x,y);
+  const nx=G>1e-9?gx/G:0,ny=G>1e-9?gy/G:0;
+  const ug=samp(UG,x,y),vg=samp(VG,x,y),ur=samp(UR,x,y),vr=samp(VR,x,y),ub=samp(UB,x,y),vb=samp(VB,x,y),us=samp(US,x,y),vs=samp(VS,x,y);
+  const Vg=Math.hypot(ug,vg),Vr=Math.hypot(ur,vr),Vs=Math.hypot(us,vs),V3m=Math.hypot(samp(U3,x,y),samp(V3,x,y));const anom=Vg>0.05&&1+4*Vg*kap/f<0;
+  const uc=samp(curU(),x,y),vc=samp(curV(),x,y);const [dirDeg,dirName]=windFrom(uc,vc,lon,lat);
+  const al=Math.atan(kf/f)/D2R;const surf=land<0.5?'moře':mt>0.45?'hory':mt>0.2?'pahorkatina':'nížina';
+  const curv=Math.abs(kap)<1/8000e3?'téměř přímé':kap>0?'cyklonální (kolem níže)':'anticyklonální (kolem výše)';
+  const rows=[['Poloha',`${f1(lat)}° s. š., ${f1(Math.abs(lon))}° ${lon<0?'z':'v'}. d.`],['Tlak',`${f1(samp(P,x,y)/100)} hPa`],
+    ['Vítr: geostrof. / gradient.',`${f1(Vg)} / ${anom?'—':f1(Vr)} m/s`],['Vítr 10 m',`${f1(Vs)} m/s od ${windFrom(us,vs,lon,lat)[1]}`],['Vítr 300 hPa (jet)',`${f1(V3m)} m/s`]];
+  document.getElementById('probeKV').innerHTML=rows.map(r=>`<b>${r[0]}</b><span>${r[1]}</span>`).join('');
+  // ---- weather / clouds
+  const t=samp(T,x,y),q=samp(QV,x,y),rh=samp(RH,x,y),cf=samp(CF,x,y),cvv=samp(CV,x,y),pr=samp(PR,x,y),z=samp(ZL,x,y),adv=samp(ADV,x,y);
+  const wd=samp(WD,x,y)*100,we=samp(WE,x,y)*100,wo=samp(WO,x,y)*100,wt=clamp(wd+we+wo,-30,30);
+  const sea=land<0.5,sst=sea?samp(SST,x,y):null;const gt=samp(GT,x,y)*1e5;
+  const wx=[['Oblačnost',`${Math.round(cf*100)} %${cvv>0.05?` + přeháňky ${Math.round(cvv*100)} %`:''}`],['Srážky',pr<0.03?'žádné':`${f1(pr,2)} mm/h (${t<-2?'sníh':'déšť'})`],
+    ['Teplota 850 hPa',`${f1(t)} °C`],['Teplotní advekce',`${sgn(+f1(adv))} K/den (${Math.abs(adv)<0.8?'slabá':adv>0?'teplá':'studená'})`],['Teplotní gradient',`${f1(gt,2)} K/100 km`],
+    ['Měrná / relativní vlhkost',`${f1(q,2)} g/kg / ${Math.round(clamp(rh,0,1.2)*100)} %`],['Výška výstupu vzduchu',`${sgn(Math.round(z))} m`]];
+  if(sea)wx.push(['Moře − vzduch 850',`${f1(sst)} − (${f1(t)}) = ${f1(sst-t)} K`]);
+  document.getElementById('wxKV').innerHTML=wx.map(r=>`<b>${r[0]}</b><span>${r[1]}</span>`).join('');
+  const comps=[['Fronty / Q-vektory',wd,'#4fb0ff'],['Mezní vrstva (tření)',we,'#7fe0a0'],[wo>=0?'Návětří hor':'Závětří hor (fén)',wo,'#d9b38c'],['Celkem',wt,'#fff']];
+  const mx=Math.max(3,...comps.map(c=>Math.abs(c[1])));
+  document.getElementById('wbars').innerHTML='<div class="note" style="margin:0 0 4px">Vertikální pohyb [cm/s] – vlevo sestup, vpravo výstup</div>'+comps.map((c,i)=>{const w=Math.abs(c[1])/mx*50;
+    return `<div class="wb ${i===3?'tot':''}"><div>${c[0]}</div><div class="bar"><i style="background:${c[2]};${c[1]>=0?`left:50%;width:${w}%`:`left:${50-w}%;width:${w}%`}"></i></div><span>${sgn(+f1(c[1]))}</span></div>`;}).join('');
+  const dom=comps.slice(0,3).reduce((a,b)=>Math.abs(b[1])>Math.abs(a[1])?b:a);
+  const domTxt={'Fronty / Q-vektory':wd>0?(adv>0.8?'dynamický výstup při teplé advekci: teplý vzduch klouže po studeném vzhůru (Q-vektory se sbíhají)':gt>1.2?'výstup na frontě: příčná cirkulace zvedá teplý vzduch nad studeným':'dynamický výstup před brázdou (sbíhavost Q-vektorů)'):(adv<-0.8?'sestup ve studeném vzduchu za studenou frontou (Q-vektory se rozbíhají)':'dynamický sestup (Q-vektory se rozbíhají)'),
+    'Mezní vrstva (tření)':we>0?'sbíhavost přízemního větru: tření stáčí vítr do níže a vzduch nemá kam jinam než nahoru':'rozbíhavost v tlakové výši: vzduch u země odtéká ven a shora se nahrazuje klesajícím',
+    'Návětří hor':'vynucený výstup na návětří hor','Závětří hor (fén)':'sestup na závětrné straně hor (fén), vzduch se otepluje a vysychá'}[dom[0]];
+  let e;
+  if(sea&&cvv>0.25&&cvv>=cf*0.8)e=`<b>Přeháňková oblačnost.</b> Studený vzduch (${f1(t)} °C ve 850 hPa) proudí nad teplé moře (${f1(sst)} °C). Rozdíl ${f1(sst-t)} K převyšuje ~13 K, vzduch je zespodu ohřívaný a zvlhčovaný, takže je labilní a tvoří konvekční buňky. Na pevnině přeháňky slábnou.`;
+  else if(cf>0.6)e=`<b>Oblačno${pr>0.05?' se srážkami':''}.</b> Vzduch zde stoupá (${f1(wt)} cm/s, celkem asi o ${Math.max(0,Math.round(z))} m) a při výstupu se ochlazuje, až se nasytí. Hlavní příčina: <b>${domTxt}</b>.${pr>0.05&&t<-2?' Ve 850 hPa je pod −2 °C, srážky padají jako sníh.':''}`;
+  else if(wt<-0.4&&cf<0.4)e=`<b>Převážně jasno.</b> Vzduch klesá (${f1(wt)} cm/s), při sestupu se adiabaticky otepluje a relativní vlhkost klesá (${Math.round(rh*100)} %). Hlavní příčina: <b>${domTxt}</b>.`;
+  else if(rh<0.6)e=`<b>Jasno, suchý vzduch.</b> Relativní vlhkost je jen ${Math.round(rh*100)} %${land>0.5?' – vzduch k nám dorazil přes pevninu a moc vlhkosti nenabral':''}. Ani ${wt>0?'slabý výstup':'slabý pohyb'} (${f1(wt)} cm/s) ho nestačí nasytit.`;
+  else e=`<b>Proměnlivá oblačnost.</b> Vzduch je vlhký (${Math.round(rh*100)} %), ale vertikální pohyb je slabý (${f1(wt)} cm/s). Nejvíc se uplatňuje: ${domTxt}.`;
+  if(gt>FRONT_THR*1e5*0.9)e+=` <span style="color:var(--mute)">Bod leží v ${adv>1.2?'teplé':adv<-1.2?'studené':'kvazistacionární'} frontální zóně (gradient ${f1(gt,1)} K/100 km).</span>`;
+  document.getElementById('wxExplain').innerHTML=e;
+  // ---- forces diagram
+  let Vu,Vv,showFr=false,showCe=false;const md=S.mode==='jet'?'geo':S.mode;if(md==='geo'){Vu=ug;Vv=vg;}else if(md==='grad'){Vu=ur;Vv=vr;showCe=true;}else{Vu=ub;Vv=vb;showFr=true;showCe=true;}
+  const Fp=[-gx/RHO,-gy/RHO],Fc=[f*Vv,-f*Vu],Ff=showFr?[-kf*Vu,-kf*Vv]:[0,0];const V2=Vu*Vu+Vv*Vv;const Fe=showCe?[V2*kap*nx,V2*kap*ny]:[0,0];
+  const res=[Fp[0]+Fc[0]+Ff[0]+Fe[0],Fp[1]+Fc[1]+Ff[1]+Fe[1]];
+  const r=fcv.getBoundingClientRect(),dd=Math.min(2,window.devicePixelRatio||1);fcv.width=r.width*dd;fcv.height=r.height*dd;const g=fctx;g.setTransform(dd,0,0,dd,0,0);g.clearRect(0,0,r.width,r.height);
+  const cx=r.width/2,cy=r.height/2;const mags=[Fp,Fc,Ff,Fe].map(v=>Math.hypot(v[0],v[1]));const mxx=Math.max(...mags,1e-9);const K=(Math.min(cx,cy)-34)/mxx;
+  g.save();g.setLineDash([4,4]);g.strokeStyle='rgba(255,255,255,0.35)';g.lineWidth=1;g.beginPath();g.moveTo(cx-ny*200,cy-nx*200);g.lineTo(cx+ny*200,cy+nx*200);g.stroke();g.restore();
+  g.textAlign='center';g.textBaseline='middle';if(G>1e-6){const rr=Math.min(cx,cy)-14;g.font='600 11px IBM Plex Sans';g.fillStyle='#ff8a8a';g.fillText('nižší tlak',cx-nx*rr,cy+ny*rr);g.fillStyle='#8fb6ff';g.fillText('vyšší tlak',cx+nx*rr,cy-ny*rr);}
+  for(const [v,c] of [[Fp,'#ff6b6b'],[Fc,'#5ab4ff'],[Ff,'#ffc145'],[Fe,'#c084fc']]){if(Math.hypot(v[0],v[1])*K<2)continue;g.strokeStyle=c;g.lineWidth=2.6;drawArrow(g,cx,cy,v[0]*K,-v[1]*K,9);}
+  const Vm=Math.hypot(Vu,Vv);if(Vm>0.1){const L=Math.min(cy-14,14+Vm*4.5);g.strokeStyle='#fff';g.lineWidth=1.6;g.setLineDash([2,3]);drawArrow(g,cx,cy,Vu/Vm*L,-Vv/Vm*L,7);g.setLineDash([]);}
+  g.beginPath();g.arc(cx,cy,3,0,7);g.fillStyle='#fff';g.fill();
+  const mm=v=>f1(Math.hypot(v[0],v[1])*1e3,2);
+  document.getElementById('fleg').innerHTML=`<span><i style="background:#ff6b6b"></i>tlaková ${mm(Fp)}</span><span><i style="background:#5ab4ff"></i>Coriolisova ${mm(Fc)}</span>`+
+    (showFr?`<span><i style="background:#ffc145"></i>tření ${mm(Ff)}</span>`:'')+(showCe?`<span><i style="background:#c084fc"></i>odstředivá ${mm(Fe)}</span>`:'')+`<span><i style="background:#fff"></i>vítr ${f1(Vm)} m/s</span><span style="color:var(--mute)">[mm/s²]</span>`;
+  const rp=Math.round(100*Math.hypot(res[0],res[1])/(mags[0]||1));let tx;
+  if(S.mode==='jet')tx=`Ve 300 hPa se k přízemnímu geostrofickému větru přičítá <b>termický vítr</b>, který je úměrný teplotnímu gradientu (zde ${f1(gt,2)} K/100 km) a fouká podél izoterm se studeným vzduchem vlevo. Výsledek: ${f1(V3m)} m/s. Diagram ukazuje přízemní geostrofickou rovnováhu.`;
+  else if(md==='geo')tx='Tlaková síla (od vyššího k nižšímu tlaku) je přesně vyrovnaná Coriolisovou silou, která působí kolmo vpravo od směru pohybu. Vítr proto fouká podél izobar.';
+  else if(md==='grad')tx=(anom?'Gradientová rovnice tu nemá řešení: výše je na svou velikost příliš ostrá. Vítr je omezen na 2×V<sub>g</sub>. ':'')+`Proudění je <b>${curv}</b>, takže gradientový vítr je ${Vr<Vg?'slabší':'silnější'} než geostrofický (${f1(Vr/(Vg||1),2)}×). ${Math.abs(kap)<1/8000e3?'':kap>0?'Kolem níže odstředivá síla pomáhá Coriolisově síle.':'Kolem výše odstředivá síla působí s tlakovou silou, a tak musí být vítr rychlejší.'}`;
+  else tx=`Tření (${surf}) brzdí vzduch, slabší Coriolisova síla nevyrovná tlakovou sílu, a tak se vítr stáčí o ≈${Math.round(al)}° přes izobary k nižšímu tlaku. Proto se vzduch v níži sbíhá (a stoupá) a ve výši rozbíhá (a klesá). Vítr v 10 m je ještě o ${Math.round(100*(1-samp(S10,x,y)))} % slabší.`;
+  if(rp>8&&md!=='geo')tx+=` <span style="color:var(--mute)">(Nevyrovnaný zbytek ${rp} % = zjednodušení modelu.)</span>`;
+  document.getElementById('explain').innerHTML=tx;}
+
+// ====================== UI wiring ======================
+const $=id=>document.getElementById(id);
+const presetSel=$('preset');PRESETS.forEach((p,i)=>{const o=document.createElement('option');o.value=i;o.textContent=p.n;presetSel.appendChild(o);});
+presetSel.onchange=()=>loadPreset(+presetSel.value);
+function selSys(){return S.systems.find(s=>s.id===S.sel)||null;}
+function refreshUI(){
+  $('bg').value=S.bg;$('bgV').textContent=(S.bg>0?'+':'')+S.bg+' hPa';
+  $('pfLat').value=S.pfLat;$('pfLatV').textContent=f1(S.pfLat)+'° s. š.';$('pfDT').value=S.pfDT;$('pfDTV').textContent=S.pfDT+' K';
+  $('sstA').value=SEA_ANOM.atl;$('sstAV').textContent=sgn(SEA_ANOM.atl)+' K';$('sstM').value=SEA_ANOM.med;$('sstMV').textContent=sgn(SEA_ANOM.med)+' K';
+  const s=selSys();$('selbox').hidden=!s;if(s){$('tH').classList.toggle('on',s.type>0);$('tL').classList.toggle('on',s.type<0);$('amp').value=s.amp;$('ampV').textContent=(s.type>0?'+':'−')+f1(s.amp)+' hPa';
+    $('size').value=s.size;$('sizeV').textContent=Math.round(s.size)+' km';$('aspect').value=s.aspect;$('aspectV').textContent=f1(s.aspect,2)+'×';$('rot').value=s.rot;$('rotV').textContent=Math.round(s.rot)+'°';}
+  document.querySelectorAll('#modeSeg button').forEach(b=>b.classList.toggle('on',b.dataset.m===S.mode));
+  document.querySelectorAll('#wSeg button').forEach(b=>b.classList.toggle('on',b.dataset.w===S.wcomp));$('wSeg').hidden=S.layer!=='vvel';
+  document.querySelectorAll('#brushes button').forEach(b=>b.classList.toggle('on',b.dataset.b===S.brush));
+  $('addH').classList.toggle('on',S.add===1);$('addL').classList.toggle('on',S.add===-1);
+  $('tspeed').value=S.tspeed;$('tspeedV').textContent=S.tspeed+' h/s';$('pause').textContent=S.paused?'Pokračovat':'Pauza';$('layer').value=S.layer;
+  updateLegend();}
+let pending=false;function changed(){pending=true;}
+$('bg').oninput=e=>{S.bg=+e.target.value;refreshUI();changed();};
+$('pfLat').oninput=e=>{S.pfLat=+e.target.value;buildTEQ();refreshUI();};$('pfDT').oninput=e=>{S.pfDT=+e.target.value;buildTEQ();refreshUI();};
+$('sstA').oninput=e=>{SEA_ANOM.atl=+e.target.value;buildSST();refreshUI();};$('sstM').oninput=e=>{SEA_ANOM.med=+e.target.value;buildSST();refreshUI();};
+for(const id of ['amp','size','aspect','rot'])$(id).oninput=e=>{const s=selSys();if(!s)return;s[id]=+e.target.value;refreshUI();changed();};
+$('tH').onclick=()=>{const s=selSys();if(s){s.type=1;refreshUI();changed();}};$('tL').onclick=()=>{const s=selSys();if(s){s.type=-1;refreshUI();changed();}};
+$('del').onclick=()=>{S.systems=S.systems.filter(s=>s.id!==S.sel);S.sel=null;refreshUI();changed();};
+$('addH').onclick=()=>{S.add=S.add===1?null:1;S.brush=null;refreshUI();};$('addL').onclick=()=>{S.add=S.add===-1?null:-1;S.brush=null;refreshUI();};
+document.querySelectorAll('#brushes button').forEach(b=>b.onclick=()=>{S.brush=S.brush===b.dataset.b?null:b.dataset.b;S.add=null;refreshUI();});
+document.querySelectorAll('#modeSeg button').forEach(b=>b.onclick=()=>{S.mode=b.dataset.m;setModeArrays();computeTraj();clearTrails();refreshUI();updateProbe();});
+document.querySelectorAll('#wSeg button').forEach(b=>b.onclick=()=>{S.wcomp=b.dataset.w;rasterDirty=true;refreshUI();});
+for(const [id,k] of [['cPart','part'],['cIso','iso'],['cIsoT','isoT'],['cFront','front'],['cQ','qv'],['cVec','vec'],['cMark','mark']])$(id).onchange=e=>{S[k]=e.target.checked;};
+$('layer').onchange=e=>{S.layer=e.target.value;rasterDirty=true;refreshUI();};
+$('tspeed').oninput=e=>{S.tspeed=+e.target.value;refreshUI();};$('pause').onclick=()=>{S.paused=!S.paused;refreshUI();};$('resetT').onclick=()=>{resetTracers(true);updateProbe();};
+$('probeOff').onclick=()=>{S.probe=null;TRAJ=null;updateProbe();};
+
+// pointer interaction
+let drag=null;const BRUSH_R=320;
+function evXY(e){const r=cv.getBoundingClientRect();return [e.clientX-r.left,e.clientY-r.top];}
+function hitSys(X,Y){if(!S.mark)return null;let best=null,bd=18*18;for(const s of S.systems){const d=(sx(s.x)-X)**2+(sy(s.y)-Y)**2;if(d<bd){bd=d;best=s;}}return best;}
+function ellRho(s,q,x,y){const dx=x-s.x,dy=y-s.y;const u=(dx*q.c+dy*q.s)/q.a,v=(-dx*q.s+dy*q.c)/q.b;return Math.sqrt(u*u+v*v);}
+function hitEdge(X,Y){const s=selSys();if(!s||!S.mark)return null;const q=sysParams(s);const r=ellRho(s,q,px2x(X),py2y(Y));return Math.abs(r-1)*Math.min(q.a,q.b)*sc<8?s:null;}
+function paint(X,Y,el){const x0=px2x(X),y0=py2y(Y);const i0=Math.round((x0-X0)/DX),j0=Math.round((Y1-y0)/DX),R=Math.ceil(BRUSH_R*2/DX);
+  for(let j=Math.max(0,j0-R);j<=Math.min(NY-1,j0+R);j++)for(let i=Math.max(0,i0-R);i<=Math.min(NX-1,i0+R);i++){const k=j*NX+i,d2=((XS(i)-x0)**2+(YS(j)-y0)**2)/(BRUSH_R*BRUSH_R);if(d2>4)continue;const g=Math.exp(-d2)*el;
+    if(S.brush==='cold')T[k]-=10*g;else if(S.brush==='warm')T[k]+=10*g;else if(S.brush==='moist')QV[k]+=(1.05*qs850(T[k])-QV[k])*Math.min(1,2*g);else if(S.brush==='dry'){QV[k]*=Math.max(0,1-1.5*g);CW[k]*=Math.max(0,1-2*g);}}
+  brushDirty=true;}
+let brushDirty=false;
+cv.addEventListener('pointerdown',e=>{const [X,Y]=evXY(e);cv.setPointerCapture(e.pointerId);
+  if(S.add){const x=px2x(X),y=py2y(Y);if(inside(x,y)){const s={id:S.nextId++,type:S.add,x,y,amp:14,size:800,aspect:1.3,rot:0};S.systems.push(s);S.sel=s.id;S.add=null;refreshUI();changed();}drag=null;return;}
+  if(S.brush){drag={k:'brush',X,Y};return;}
+  const s=hitSys(X,Y);if(s){S.sel=s.id;drag={k:'move',s,X,Y,x0:s.x,y0:s.y};refreshUI();return;}
+  const se=hitEdge(X,Y);if(se){const q=sysParams(se);drag={k:'edge',s:se,q,size0:se.size,r0:ellRho(se,q,px2x(X),py2y(Y))};return;}
+  drag={k:'click',X,Y};});
+cv.addEventListener('pointermove',e=>{const [X,Y]=evXY(e);hoverXY=[X,Y];
+  if(drag&&drag.k==='move'){drag.s.x=clamp(drag.x0+(X-drag.X)/sc,X0,X1);drag.s.y=clamp(drag.y0-(Y-drag.Y)/sc,Y0,Y1);changed();}
+  else if(drag&&drag.k==='edge'){const r=ellRho(drag.s,drag.q,px2x(X),py2y(Y));drag.s.size=clamp(drag.size0*r/drag.r0,250,2500);refreshUI();changed();}
+  else if(drag&&drag.k==='brush'){drag.X=X;drag.Y=Y;}
+  else{const h=S.brush?null:hitSys(X,Y);hoverId=h?h.id:null;cv.style.cursor=S.add||S.brush?'crosshair':h?'grab':hitEdge(X,Y)?'nwse-resize':'default';}
+  updateCursor(X,Y);});
+cv.addEventListener('pointerup',e=>{const [X,Y]=evXY(e);if(drag&&drag.k==='click'&&Math.hypot(X-drag.X,Y-drag.Y)<5){const x=px2x(X),y=py2y(Y);if(inside(x,y)){S.probe={x,y};S.sel=null;refreshUI();computeTraj();updateProbe();}}
+  if(drag&&drag.k!=='click')updateProbe();drag=null;});
+cv.addEventListener('pointerleave',()=>{hoverXY=null;$('cursor').hidden=true;});
+cv.addEventListener('wheel',e=>{const [X,Y]=evXY(e);const ss=selSys();const s=hitSys(X,Y)||(ss&&ellRho(ss,sysParams(ss),px2x(X),py2y(Y))<1?ss:null);if(!s)return;e.preventDefault();
+  const f=Math.exp(-Math.sign(e.deltaY)*0.07);if(e.shiftKey)s.amp=clamp(s.amp*f,2,45);else s.size=clamp(s.size*f,250,2500);S.sel=s.id;refreshUI();changed();},{passive:false});
+window.addEventListener('keydown',e=>{if(e.target.tagName==='INPUT'||e.target.tagName==='SELECT')return;if((e.key==='Delete'||e.key==='Backspace')&&S.sel){$('del').click();e.preventDefault();}
+  if(e.key==='Escape'){S.add=null;S.sel=null;S.brush=null;refreshUI();}});
+function updateCursor(X,Y){const x=px2x(X),y=py2y(Y),el=$('cursor');if(!inside(x,y)){el.hidden=true;return;}el.hidden=false;const [lon,lat]=inv(x,y);
+  const u=samp(curU(),x,y),v=samp(curV(),x,y);const [d,n]=windFrom(u,v,lon,lat);
+  let extra=` · ${f1(samp(T,x,y))} °C`;const L=S.layer;
+  if(L==='cloud'||L==='rh')extra+=` · oblačnost ${Math.round(samp(CF,x,y)*100)} %`;else if(L==='precip')extra+=` · ${f1(samp(PR,x,y),2)} mm/h`;else if(L==='vvel')extra+=` · w ${f1(samp(WT,x,y)*100)} cm/s`;else if(L==='dust')extra+=` · prach ${f1(samp(DU,x,y),2)}`;
+  el.textContent=`${f1(lat)}°N ${f1(lon)}°E · ${f1(samp(P,x,y)/100)} hPa · ${f1(Math.hypot(u,v))} m/s od ${n}${extra}`;}
+
+// ====================== main loop ======================
+let last=performance.now(),probeT=0;const STEP=1800;
+function frame(now){const el=Math.min(0.1,(now-last)/1000);last=now;const fr=el*60;
+  if(pending){pending=false;compute();if(GLR)velTexDirty=true;}
+  if(drag&&drag.k==='brush')paint(drag.X,drag.Y,el);
+  if(!S.paused){S.acc+=S.tspeed*3600*el;let n=0;while(S.acc>=STEP&&n<3){tracerStep(STEP);S.acc-=STEP;n++;}if(S.acc>STEP)S.acc=STEP;
+    if(n){updateDyn(n*6);diagClouds();}}
+  else if(brushDirty){updateDyn(8);diagClouds();}
+  brushDirty=false;
+  if(GLR&&velTexDirty){GLR.uploadV();velTexDirty=false;}
+  stepParticles(Math.max(0.3,fr));draw((S.simT+S.acc)/3600);
+  if(S.probe&&now-probeT>350){updateProbe();probeT=now;}
+  const d=Math.floor(S.simT/86400),h=Math.floor((S.simT%86400)/3600);$('clock').textContent=`simulace: +${d} d ${String(h).padStart(2,'0')} h${S.paused?' (pauza)':''}`;
+  requestAnimationFrame(frame);}
+window.addEventListener('resize',()=>{resize();});
+resize();presetSel.value=0;loadPreset(0);refreshUI();requestAnimationFrame(frame);
+</script>
+</body>
+</html>
