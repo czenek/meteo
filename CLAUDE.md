@@ -36,9 +36,16 @@ Workflow: edituj `src/template.html` → `python tools/build.py` → otevři `in
   - `WE` – Ekmanovo čerpání `−1000 m · ∇·V_bl`;
   - `WO` – orografie `0.6 · V_bl·∇h` (terén = ručně zadané elipsy pohoří, nejde o DEM).
 - Kondenzace: `q_s,eff = q_s(T850)·exp(−γ·Z)`, γ = 4.5e-4 /m; nadbytek → `CW`; `CW > 0.06 g/kg` vypadává; vypařování při podsycení.
-- Moře: SST podle regionů (`REG`, `SST`, slidery odchylek); výpar a ohřev tím silnější, čím je vzduch studenější než moře; přeháňky při `SST − T850 > ~13 K`.
+- Moře: SST podle regionů (`REG`: Atlantik, Středozemní, Černé, Baltské, Severní, Kaspické, Rudé; odchylka pro každé zvlášť); výpar a ohřev tím silnější, čím je vzduch studenější než moře; přeháňky při `SST − T850 > ~13 K`.
 - Fronty: osy maxima |∇T| (TFP-like), filtr `|∇T| > 1.4 K/100 km`, **frontogeneze > 0.6 K/100 km/den** (aby se nekreslily kruhy kolem stacionárních studených jader), okraj 5 buněk mimo; typ podle advekce (teplá/studená/kvazistac.).
 - Vykreslení: 2D canvas (raster vrstev, izobary/izotermy marching squares, částice s fade trails) + WebGL2 shader pro „družicový“ vzhled (flow-advected noise ve dvou fázích). Pokud je WebGL pomalé (EMA > 28 ms), automaticky `glSlow = true` → jednoduchý raster.
+
+## UI (rozložení à la Photoshop)
+- Pravidlo: **nástroj = věc, se kterou pracuji přímo v mapě**; kontextová lišta nahoře = jeho doladění (nebo parametry vybraného systému).
+- Nástroje vlevo (`S.tool`, klávesy 1–6): Tlak (klik přidá V/N, táhnutí, kolečko; klik do prázdna při výběru jen zruší výběr; v liště i Západní proudění = `S.bg`),
+  Teplota a Vlhkost (štětce, přepínač studený/teplý resp. vlhký/suchý + velikost), Pol. fronta (táhnutí = šířka, kolečko = kontrast), Moře (táhnutí nahoru/dolů kdekoli = posun SST všech moří, kolečko nad mořem = jen to moře; volba „Všechna“ v liště; každé moře zvlášť: `SEAS`/`SEA_ANOM` indexované `REG`, vč. Rudého a Kaspického), Sonda (klik/táhnutí).
+- Nástroj si přepne podklad (`TOOL_LAYER` → `S.toolLayer`), klik na dlaždici to přebije (podklad se mění jen klikem, ne najetím). `lay()` = toolLayer > layer.
+- Vpravo: titulek + výběr situace, Podklad, Vítr (Hladina 10 m / 1,5 km / 9 km, Výpočet Úplný / Geostrofický → `S.mode`; zobrazit Částice / Šipky), Čáry a značky, záložky Sonda / O modelu. Dole lišta času (mezerník = pauza; pauza zastaví i částice).
 
 ## Výkon (orientačně, headless bez GPU)
 compute() ~10–17 ms (jen při změně tlaku), tracerStep ~10 ms (12×/s při 6 h/s), updateDyn ~2 ms, 2D draw ~1.6 ms.
