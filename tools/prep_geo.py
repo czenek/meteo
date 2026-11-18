@@ -1,4 +1,7 @@
 import json,math
+from pathlib import Path
+ROOT=Path(__file__).resolve().parent.parent
+NE=ROOT/'natural-earth'
 R=6371.0; l0=math.radians(10); p1=math.radians(50)
 X0,X1,Y0,Y1=-3800,3800,-2850,2700
 def fwd(lon,lat):
@@ -6,15 +9,25 @@ def fwd(lon,lat):
     k=2/(1+math.sin(p1)*math.sin(p)+math.cos(p1)*math.cos(p)*math.cos(d))
     return R*k*math.cos(p)*math.sin(d), R*k*(math.cos(p1)*math.sin(p)-math.sin(p1)*math.cos(p)*math.cos(d))
 M=400 # margin km
-def clampring(ring):
-    out=[]
-    for lon,lat in ring:
-        if lat<-10 or abs(lon-10)>120: x,y=(X0-M if lon<10 else X1+M), (Y0-M)
-        else:
-            x,y=fwd(lon,lat)
-        x=min(max(x,X0-M),X1+M); y=min(max(y,Y0-M),Y1+M)
-        out.append((x,y))
-    return out
+BOX=(X0-M,X1+M,Y0-M,Y1+M)
+def clip(pts):
+    # Sutherland-Hodgman: clip the projected ring to the box (domain + margin).
+    # Points far outside are projected too (stereographic is finite everywhere except
+    # the antipode), so edges crossing the domain keep their true direction.
+    for ax,side in ((0,0),(0,1),(1,0),(1,1)):
+        b=BOX[2*ax+side]; ins=(lambda q: q[ax]>=b) if side==0 else (lambda q: q[ax]<=b)
+        out=[]
+        for i in range(len(pts)):
+            P,Q=pts[i-1],pts[i]
+            if ins(Q):
+                if not ins(P): out.append(cut(P,Q,ax,b))
+                out.append(Q)
+            elif ins(P): out.append(cut(P,Q,ax,b))
+        pts=out
+        if not pts: break
+    return pts
+def cut(P,Q,ax,b):
+    t=(b-P[ax])/(Q[ax]-P[ax]); return (P[0]+t*(Q[0]-P[0]), P[1]+t*(Q[1]-P[1]))
 def dp(pts,eps):
     if len(pts)<3: return pts
     keep=[False]*len(pts); keep[0]=keep[-1]=True
@@ -34,9 +47,9 @@ def proc(fn, minarea, eps, names=False, holes=False):
         geom=f['geometry']; polys=geom['coordinates'] if geom['type']=='MultiPolygon' else [geom['coordinates']]
         for poly in polys:
             for ring in (poly[1:] if holes else poly[:1]):
-                pr=[fwd(lo,la) if la>-10 and abs(lo-10)<120 else (1e9,1e9) for lo,la in ring]
-                if not any(X0-M<x<X1+M and Y0-M<y<Y1+M for x,y in pr): continue
-                c=clampring(ring)
+                if max(la for lo,la in ring)<-30: continue  # Antarctica etc. (close to the antipode)
+                c=clip([fwd(lo,la) for lo,la in ring])
+                if len(c)<3: continue
                 # dedupe
                 d=[c[0]]
                 for p in c[1:]:
@@ -51,9 +64,9 @@ def proc(fn, minarea, eps, names=False, holes=False):
                 for i in range(1,len(xs)): enc+= [xs[i]-xs[i-1], ys[i]-ys[i-1]]
                 res.append(enc)
     return res
-land=proc('natural-earth/ne_50m_land.geojson', 300, 4)
-holes=proc('natural-earth/ne_50m_land.geojson', 1500, 4, True, True)
-lakes=holes+proc('natural-earth/ne_50m_lakes.geojson', 1500, 4, True)
+land=proc(NE/'ne_50m_land.geojson', 300, 4)
+holes=proc(NE/'ne_50m_land.geojson', 1500, 4, True, True)
+lakes=holes+proc(NE/'ne_50m_lakes.geojson', 1500, 4, True)
 js=json.dumps({'land':land,'lakes':lakes},separators=(',',':'))
-open('geo.json','w').write(js)
+open(ROOT/'data'/'geo.json','w').write(js)
 print(len(land), sum(len(r)//2 for r in land), len(lakes), len(js))
