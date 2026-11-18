@@ -15,9 +15,10 @@ Komunikuj s uživatelem česky. Kontext a historie rozhodnutí: `docs/historie.m
 - Zafixované chladné pololetí (frontální/vrstevnatá oblačnost; letní konvekce není).
 
 ## Struktura
-- `src/template.html` – veškerý kód (CSS + JS + GLSL). Místo dat obsahuje placeholder `/*GEO*/`.
+- `src/template.html` – veškerý kód (CSS + JS + GLSL). Místo dat obsahuje placeholdery `/*GEO*/` a `/*I18N*/`.
+- `src/i18n.js` – všechny texty UI (`L10N`: cs, en, de, it, eo). V šabloně žádné texty natvrdo: statické přes `data-tx` (innerHTML), `data-tt` (title), `data-ta` (aria-label), dynamické přes `t(klíč, ...args)` (hodnota může být funkce). Chybějící klíč → en → cs. Nový text = přidat klíč do všech pěti jazyků.
 - `data/geo.json` – pobřeží a jezera (Natural Earth 1:50m), už promítnutá do roviny [km], delta-kódovaná.
-- `tools/build.py` – vloží geo.json do šablony → `index.html` (to je výsledná stránka; needitovat ručně).
+- `tools/build.py` – vloží geo.json a i18n.js do šablony → `index.html` (to je výsledná stránka; needitovat ručně).
 - `tools/prep_geo.py` – regenerace geo.json z Natural Earth GeoJSON (`ne_50m_land.geojson`, `ne_50m_lakes.geojson` do složky `natural-earth/`).
 - `tools/screenshot.py` – headless test přes Playwright (screenshot + chyby konzole).
 - `docs/v1-template-jen-vitr.html` – první verze (jen vítr), pro srovnání.
@@ -45,7 +46,8 @@ Workflow: edituj `src/template.html` → `python tools/build.py` → otevři `in
 - Nástroje vlevo (`S.tool`, klávesy 1–6): Tlak (klik přidá V/N, táhnutí, kolečko; klik do prázdna při výběru jen zruší výběr; v liště i Západní proudění = `S.bg`),
   Teplota a Vlhkost (štětce, přepínač studený/teplý resp. vlhký/suchý + velikost), Pol. fronta (táhnutí = šířka, kolečko = kontrast), Moře (táhnutí nahoru/dolů kdekoli = posun SST všech moří, kolečko nad mořem = jen to moře; volba „Všechna“ v liště; každé moře zvlášť: `SEAS`/`SEA_ANOM` indexované `REG`, vč. Rudého a Kaspického), Sonda (klik/táhnutí).
 - Nástroj si přepne podklad (`TOOL_LAYER` → `S.toolLayer`), klik na dlaždici to přebije (podklad se mění jen klikem, ne najetím). `lay()` = toolLayer > layer.
-- Vpravo: titulek + výběr situace, Podklad, Vítr (Hladina 10 m / 1,5 km / 9 km, Výpočet Úplný / Geostrofický → `S.mode`; zobrazit Částice / Šipky), Čáry a značky, záložky Sonda / O modelu. Dole lišta času (mezerník = pauza; pauza zastaví i částice).
+- Vpravo: titulek + jazyk (`#lang`; pořadí volby: `?lang=` v URL > localStorage `meteo.lang` > jazyk prohlížeče, sk → cs, jinak en) + vzhled (`#theme`: auto/světlý/tmavý, localStorage `meteo.theme`) + výběr situace, Podklad, Vítr (Hladina 10 m / 1,5 km / 9 km, Výpočet Úplný / Geostrofický → `S.mode`; zobrazit Částice / Šipky), Čáry a značky, záložky Sonda / O modelu. Dole lišta času (mezerník = pauza; pauza zastaví i částice).
+- Vzhled: barvy jen přes CSS proměnné v `:root` (tmavé) a `:root[data-theme=light]`; `applyTheme()` nastaví `data-theme` a do `THEME` načte barvy pro canvas (diagram sil, pozadí). Mapa samotná zůstává tmavá v obou režimech (družicový vzhled, barevné škály).
 
 ## Výkon (orientačně, headless bez GPU)
 compute() ~10–17 ms (jen při změně tlaku), tracerStep ~10 ms (12×/s při 6 h/s), updateDyn ~2 ms, 2D draw ~1.6 ms.
